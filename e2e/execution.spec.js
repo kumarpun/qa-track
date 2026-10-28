@@ -32,7 +32,12 @@ async function createRun(page, id, caseTitle) {
   return page.url();
 }
 
-const pick = (page, name) => page.getByRole("radio", { name, exact: true }).check({ force: true });
+// Click the visible label: the real radio is sr-only, so a forced click on it can hit whatever overlaps its position.
+async function pick(page, name) {
+  const radio = page.getByRole("radio", { name, exact: true });
+  await page.locator("label").filter({ has: radio }).click();
+  await expect(radio).toBeChecked();
+}
 
 test("execute Passed → Failed → Retest → Passed keeps history, attachments, defects, counts", async ({ page }) => {
   test.setTimeout(180_000);
