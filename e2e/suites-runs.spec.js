@@ -118,3 +118,35 @@ test("QA engineer cannot create runs; viewer is read-only; unknown ids 404", asy
   await page.goto("/test-runs/new");
   await expect(page.getByText("This page could not be found")).toBeVisible();
 });
+
+test("a suite and a run from another project cannot be opened by someone who is not a member", async ({ browser }) => {
+  test.setTimeout(120_000);
+  // lead belongs to APP and WEB; qa2 belongs to APP only.
+  const lead = await (await browser.newContext()).newPage();
+  await login(lead, "lead@example.com");
+  await lead.goto("/projects");
+  await lead.getByRole("button", { name: "Switch project" }).click();
+  await lead.getByRole("menuitem", { name: /^WEB/ }).click();
+  await expect(lead.getByRole("button", { name: "Switch project" })).toContainText("WEB");
+
+  const id = uniq();
+  await lead.goto("/test-suites/new");
+  await lead.getByLabel("Name", { exact: true }).fill(`Iso suite ${id}`);
+  await lead.getByRole("button", { name: "Create suite" }).click();
+  await expect(lead.getByRole("heading", { name: `Iso suite ${id}` })).toBeVisible();
+  const suiteUrl = lead.url();
+
+  await lead.goto("/test-runs/new");
+  await lead.getByLabel("Name", { exact: true }).fill(`Iso run ${id}`);
+  await lead.getByLabel(new RegExp("^TC-WEB-0001")).check();
+  await lead.getByRole("button", { name: "Create run" }).click();
+  await expect(lead.getByRole("heading", { name: new RegExp(`Iso run ${id}`) })).toBeVisible();
+  const runUrl = lead.url();
+
+  const qa2 = await (await browser.newContext()).newPage();
+  await login(qa2, "qa2@example.com");
+  for (const url of [suiteUrl, `${suiteUrl}/edit`, runUrl]) {
+    await qa2.goto(url);
+    await expect(qa2.getByText("This page could not be found")).toBeVisible();
+  }
+});
