@@ -21,14 +21,18 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 | `npm run test:e2e` | Playwright. Uses its own server (port 3100) and database `TEST_DB_NAME` (default `qa_platform_test`), which is migrated and seeded automatically; never touches `DB_NAME` |
 | `npm run build` | production build |
 
-## Status (Phase 3 complete)
+## Status (Phase 4 complete)
 Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, audit-log writes, 19-table normalized schema.
 
 Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), immutable versions (every content edit creates a new version; restoring an old version creates a new one), version history, duplicate, archive/restore, bulk actions (archive, restore, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
 
 Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, archive/restore, duplicate), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** the latest version of every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
 
-Placeholders (later phases): execution, defects, reports.
+Phase 4 (execution): open a run case to see its frozen snapshot, record Passed / Failed / Blocked / Skipped / Retest with optional per-step results, actual result, comment, defect links (existing, or "Report new defect" inline) and attachments. Failed requires an actual result. Every save appends an execution row (append-only history); the run case shows its latest status. Retest stays in the pass-rate denominator, so it never inflates the rate. Runs can be completed, cancelled or reopened (results are rejected while a run is closed). Comments per run case; `/execution` lists open runs. Executing needs QA Engineer or above; Viewers are read-only.
+
+Attachments are stored on local disk under `UPLOAD_DIR` (outside the web root, gitignored) with an extension allowlist (png, jpg, jpeg, gif, webp, pdf, txt, log, csv, json, mp4, webm, zip), 8 MB per file and 10 files per execution. Downloads go through `/api/attachments/:id`, which checks project membership, sends `nosniff` and a sandbox CSP, and only renders images inline.
+
+Placeholders (later phases): defects module pages, reports.
 
 ### CSV format
 One row per step. A row with a `title` starts a new case; following rows with only step columns add steps to it.

@@ -30,7 +30,13 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - Suites nest via `parent_id`; cycles, cross-project parents and archived parents are rejected. Reordering must send the exact current member set, otherwise 409 (guards against concurrent edits).
 - `createRun` is one transaction: it locks the latest `test_case_versions` rows (`FOR UPDATE`; TiDB does not support `LOCK IN SHARE MODE`), assigns the next `run_seq` code, and stores `test_run_cases.test_case_version_id` plus a JSON `snapshot` of the content. Runs never read live case content, so edits cannot rewrite history.
 - Cases referenced by suites or runs are never hard-deleted (FK `RESTRICT`); they are archived. Archived cases and suites are skipped when building new runs, and a run needs at least one case.
-- Execution results, attachments and comments arrive in Phase 4.
+
+## Execution (Phase 4)
+- `services/executions.js` (`recordExecution`, comments, run status transitions), `defects.js` (quick-create and linking), `attachments.js` (disk storage, allowlist, size limits); actions in `app/actions/executions.js`, files via `app/api/attachments`.
+- `recordExecution` locks the run case row (`FOR UPDATE`), inserts a `test_executions` row (never updates old ones) plus per-step rows and defect links, then refreshes `test_run_cases.status`. The first result moves a Draft run to In progress. Closed runs reject results (409).
+- Pass rate is PASSED / total cases: NOT_RUN and RETEST both count as not passed.
+- Run status transitions: Draft/In progress → Completed/Cancelled; closed → In progress (reopen). Every transition is audited.
+- Attachment authorization: upload needs `run.execute` on the execution's project; download needs membership; non-members get 404.
 
 ## Roadmap
 | Phase | Scope | Status |
@@ -38,7 +44,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | 1 | Setup, schema, auth, layout, projects, users, dashboard shell | done |
 | 2 | Test cases, steps, versions, CSV import/export, bulk actions | done |
 | 3 | Suites, run creation with snapshots | done |
-| 4 | Execution UI, attachments, comments, history | |
+| 4 | Execution UI, attachments, comments, history | done |
 | 5 | Defects, reports, CSV/print | |
 | 6 | Audit log UI, permission/security review, test suite | |
 | 7 | Polish, docs | |

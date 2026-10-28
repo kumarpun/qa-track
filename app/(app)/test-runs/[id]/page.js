@@ -9,7 +9,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { can } from "@/lib/permissions";
 import { PRIORITY_TONE, label } from "../../test-cases/labels";
+import { RunActions } from "./run-actions";
 
 const fmt = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "—");
 
@@ -28,7 +30,7 @@ export default async function RunDetailPage({ params }) {
       <PageHeader
         title={`${run.code} · ${run.name}`}
         description={[label(run.environment), run.build_version && `build ${run.build_version}`, run.platform && label(run.platform), `created by ${run.created_by_name}`].filter(Boolean).join(" · ")}
-        actions={<StatusBadge status={run.status} />}
+        actions={<>{can(ctx.role, "run.manage") && <RunActions projectId={ctx.project.id} runId={run.id} status={run.status} />}<StatusBadge status={run.status} /></>}
       />
       {run.description && <p className="mb-4 whitespace-pre-wrap text-sm">{run.description}</p>}
 
@@ -73,9 +75,9 @@ export default async function RunDetailPage({ params }) {
           <TableBody>
             {run.items.map((c) => (
               <TableRow key={c.id} data-testid="run-case">
-                <TableCell>{c.position + 1}</TableCell>
+                <TableCell>{c.position}</TableCell>
                 <TableCell className="font-mono text-xs">{c.code}</TableCell>
-                <TableCell>{c.title}</TableCell>
+                <TableCell><Link className="hover:underline" href={`/test-runs/${run.id}/cases/${c.id}`}>{c.title}</Link></TableCell>
                 <TableCell><Badge variant="secondary" className={PRIORITY_TONE[c.priority]}>{label(c.priority)}</Badge></TableCell>
                 <TableCell>v{c.version}</TableCell>
                 <TableCell>{c.stepCount}</TableCell>

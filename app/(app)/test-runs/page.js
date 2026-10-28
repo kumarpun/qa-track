@@ -59,7 +59,7 @@ export default async function TestRunsPage({ searchParams }) {
               <TableBody>
                 {result.rows.map((r) => {
                   // Only PASSED counts toward pass rate; unexecuted and Retest cases stay in the denominator.
-                  const pr = computeProgress({ PASSED: r.passed, FAILED: r.failed, NOT_RUN: r.not_run, SKIPPED: r.total - r.passed - r.failed - r.not_run });
+                  const pr = computeProgress(r.counts);
                   return (
                     <TableRow key={r.id} data-testid="run-row">
                       <TableCell className="font-mono text-xs"><Link className="hover:underline" href={`/test-runs/${r.id}`}>{r.code}</Link></TableCell>
