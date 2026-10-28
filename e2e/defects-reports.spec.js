@@ -71,7 +71,7 @@ test("defect CRUD, status, filter, delete rules and CSV export", async ({ page }
   await expect(page).toHaveURL(/\/defects$/);
 });
 
-test("one defect links to many executions; linked defect cannot be deleted; reports + viewer + non-member", async ({ browser }) => {
+test("one defect links to many executions; linked defect cannot be deleted; reports, print view, viewer read-only", async ({ browser }) => {
   test.setTimeout(240_000);
   const lead = await (await browser.newContext()).newPage();
   await login(lead, "lead@example.com");
@@ -115,7 +115,7 @@ test("one defect links to many executions; linked defect cannot be deleted; repo
   await expect(lead.getByTestId("defect-execution")).toHaveCount(2);
   await lead.getByRole("button", { name: "Delete" }).click();
   await lead.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
-  await expect(lead.getByText(/linked/i).first()).toBeVisible();
+  await expect(lead.getByText("This defect is linked to test executions and cannot be deleted. Close it instead.")).toBeVisible();
   await lead.keyboard.press("Escape");
   await lead.goto(defectUrl);
   await expect(lead.getByTestId("defect-execution")).toHaveCount(2);
@@ -140,6 +140,44 @@ test("one defect links to many executions; linked defect cannot be deleted; repo
 
   // Signed-out request to the export endpoint is never served data.
   const anon = await (await browser.newContext()).newPage();
-  const r = await anon.request.get("/reports/export?project=" + "00000000-0000-4000-8000-000000000000", { maxRedirects: 0 });
+  const r = await anon.request.get("/reports/export?project=00000000-0000-4000-8000-000000000000", { maxRedirects: 0 });
   expect([401, 302, 307, 404]).toContain(r.status());
+
+  // Print view: chrome and action buttons disappear, content is not offset by the sidebar.
+  await lead.goto("/reports");
+  await lead.emulateMedia({ media: "print" });
+  await expect(lead.locator("aside")).toBeHidden();
+  await expect(lead.locator("header")).toBeHidden();
+  await expect(lead.getByRole("button", { name: "Print view" })).toBeHidden();
+  await expect(lead.getByRole("link", { name: "Runs CSV" })).toBeHidden();
+  await expect(lead.getByTestId("rep-passrate")).toBeVisible();
+  const box = await lead.locator("main").boundingBox();
+  expect(box.x).toBeLessThan(5);
+});
+
+test("a non-member cannot read, edit or export another project's defects", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const lead = await (await browser.newContext()).newPage();
+  await login(lead, "lead@example.com");
+  await lead.getByRole("button", { name: "Switch project" }).click();
+  await lead.getByRole("menuitem", { name: /^WEB/ }).click();
+  await expect(lead.getByRole("button", { name: "Switch project" })).toContainText("WEB");
+  const id = uniq();
+  await lead.goto("/defects/new");
+  await lead.getByLabel("Title", { exact: true }).fill(`Web only ${id}`);
+  await lead.getByRole("button", { name: "Create defect" }).click();
+  await expect(lead.getByRole("heading", { name: new RegExp(`Web only ${id}`) })).toBeVisible();
+  const url = lead.url();
+  await lead.goto("/defects");
+  const exportHref = await lead.getByRole("link", { name: /Export CSV/ }).getAttribute("href");
+  const projectId = new URL(exportHref, "http://x").searchParams.get("project");
+
+  const qa2 = await (await browser.newContext()).newPage();
+  await login(qa2, "qa2@example.com");
+  for (const path of [new URL(url).pathname, `${new URL(url).pathname}/edit`]) {
+    await qa2.goto(path);
+    await expect(qa2.getByText("This page could not be found")).toBeVisible();
+  }
+  expect((await qa2.request.get(`/defects/export?project=${projectId}`)).status()).toBe(404);
+  expect((await qa2.request.get(`/reports/export?project=${projectId}&type=defects`)).status()).toBe(404);
 });
