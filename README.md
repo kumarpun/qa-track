@@ -61,10 +61,11 @@ Columns: `code, title, description, preconditions, test_data, priority, type, au
 | QA Engineer | write cases, suites, defects; execute runs and comment |
 | Viewer | read and export only |
 
-Permissions are checked server-side in every Server Action and route handler (`lib/permissions.js`, `lib/server/dal.js`); hidden UI is never the only guard.
+A global role caps project roles: a global Viewer listed as a project QA Lead stays read-only. Permissions are checked server-side in every Server Action and route handler (`lib/permissions.js`, `lib/server/dal.js`); hidden UI is never the only guard.
 
 ## Deploying
 1. Provision a MySQL 8 / TiDB database and set `DB_*` (and `DB_SSL=true` for TLS) plus a fresh `AUTH_SECRET`.
 2. `npm run db:migrate` on every environment (migration 002 adds `login_attempts`).
 3. Do **not** run `db:seed` in production, or change the demo passwords immediately.
 4. `npm run build && npm start`; put it behind HTTPS and persist `UPLOAD_DIR`.
+- Global search (header) searches test cases of the active project only; runs and defects have their own list searches.
