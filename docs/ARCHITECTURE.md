@@ -25,12 +25,19 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - `lib/csv.js` is a dependency-free RFC 4180 parser/writer; `lib/testcase-csv.js` maps rows to cases (one row per step, all-or-nothing, line-numbered errors).
 - Content edits (title, steps, priority…) write a new `test_case_versions` row; restore copies an old snapshot into a new version.
 
+## Suites and runs (Phase 3)
+- `lib/server/services/suites.js` (tree, membership, ordering, archive, duplicate) and `runs.js` (creation, list, detail); actions in `app/actions/suites.js` and `runs.js`.
+- Suites nest via `parent_id`; cycles, cross-project parents and archived parents are rejected. Reordering must send the exact current member set, otherwise 409 (guards against concurrent edits).
+- `createRun` is one transaction: it locks the latest `test_case_versions` rows (`FOR UPDATE`; TiDB does not support `LOCK IN SHARE MODE`), assigns the next `run_seq` code, and stores `test_run_cases.test_case_version_id` plus a JSON `snapshot` of the content. Runs never read live case content, so edits cannot rewrite history.
+- Cases referenced by suites or runs are never hard-deleted (FK `RESTRICT`); they are archived. Archived cases and suites are skipped when building new runs, and a run needs at least one case.
+- Execution results, attachments and comments arrive in Phase 4.
+
 ## Roadmap
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Setup, schema, auth, layout, projects, users, dashboard shell | done |
 | 2 | Test cases, steps, versions, CSV import/export, bulk actions | done |
-| 3 | Suites, run creation with snapshots | |
+| 3 | Suites, run creation with snapshots | done |
 | 4 | Execution UI, attachments, comments, history | |
 | 5 | Defects, reports, CSV/print | |
 | 6 | Audit log UI, permission/security review, test suite | |

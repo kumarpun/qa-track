@@ -21,12 +21,14 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 | `npm run test:e2e` | Playwright. Uses its own server (port 3100) and database `TEST_DB_NAME` (default `qa_platform_test`), which is migrated and seeded automatically; never touches `DB_NAME` |
 | `npm run build` | production build |
 
-## Status (Phase 2 complete)
+## Status (Phase 3 complete)
 Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, audit-log writes, 19-table normalized schema.
 
 Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), immutable versions (every content edit creates a new version; restoring an old version creates a new one), version history, duplicate, archive/restore, bulk actions (archive, restore, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
 
-Placeholders (later phases): suites, runs, execution, defects, reports.
+Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, archive/restore, duplicate), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** the latest version of every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
+
+Placeholders (later phases): execution, defects, reports.
 
 ### CSV format
 One row per step. A row with a `title` starts a new case; following rows with only step columns add steps to it.
