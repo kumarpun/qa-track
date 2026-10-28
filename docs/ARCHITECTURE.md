@@ -20,11 +20,16 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - **Retest** is *pending*: it is neither completed nor passed (see `lib/metrics.js`).
 - Non-members get 404, not 403, so project IDs cannot be probed.
 
+## Test case module (Phase 2)
+- Layers: `app/(app)/test-cases/*` (server pages + client forms) → `app/actions/testcases.js` (Zod + `run()` result wrapper) → `lib/server/services/testcases.js` (transactions, versioning, audit) → `lib/server/db.js`.
+- `lib/csv.js` is a dependency-free RFC 4180 parser/writer; `lib/testcase-csv.js` maps rows to cases (one row per step, all-or-nothing, line-numbered errors).
+- Content edits (title, steps, priority…) write a new `test_case_versions` row; restore copies an old snapshot into a new version.
+
 ## Roadmap
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Setup, schema, auth, layout, projects, users, dashboard shell | done |
-| 2 | Test cases, steps, versions, CSV import/export, bulk actions | |
+| 2 | Test cases, steps, versions, CSV import/export, bulk actions | done |
 | 3 | Suites, run creation with snapshots | |
 | 4 | Execution UI, attachments, comments, history | |
 | 5 | Defects, reports, CSV/print | |

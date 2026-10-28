@@ -32,7 +32,7 @@ Placeholders (later phases): suites, runs, execution, defects, reports.
 One row per step. A row with a `title` starts a new case; following rows with only step columns add steps to it.
 Columns: `code, title, description, preconditions, test_data, priority, type, automation, component, tags, requirement_url, assignee_email, step_action, step_data, step_expected`.
 - `code` is ignored on import; new codes are assigned.
-- `tags` are separated by `;` (or `|`, `-` is not a separator).
+- `tags` are separated by `;` or `|`. Commas are not separators (they would break the CSV column).
 - Import is all-or-nothing: every bad row is reported with its line number and nothing is written. Limits: 500 cases, 2 MB.
 - Export prefixes cells starting with `= + - @` or tab with `'` to prevent spreadsheet formula injection; import strips it again, so round-trips are lossless.
 
