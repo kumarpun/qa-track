@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, FileCheck2, Layers, PlayCircle, ListChecks, Bug, BarChart3, Settings,
+  LayoutDashboard, FolderKanban, FileCheck2, Layers, PlayCircle, ListChecks, Bug, BarChart3, ScrollText, Settings,
 } from "lucide-react";
 
 export const NAV = [
@@ -11,5 +11,6 @@ export const NAV = [
   { href: "/execution", label: "Test Execution", icon: ListChecks },
   { href: "/defects", label: "Defects", icon: Bug },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/audit-log", label: "Audit Log", icon: ScrollText, minRole: "QA_LEAD" },
   { href: "/users", label: "Users & Settings", icon: Settings },
 ];

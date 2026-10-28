@@ -38,3 +38,43 @@ describe("effectiveProjectRole", () => {
     expect(effectiveProjectRole("VIEWER", "QA_LEAD")).toBe("VIEWER");
   });
 });
+
+describe("full role × action matrix", () => {
+  // Expected minimum role per action, written out independently of ACTION_MIN_ROLE so an accidental
+  // relaxation of a rule fails here instead of silently passing.
+  const EXPECTED = {
+    "project.read": ["VIEWER", "QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "report.read": ["VIEWER", "QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "testcase.write": ["QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "suite.write": ["QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "run.execute": ["QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "defect.write": ["QA_ENGINEER", "QA_LEAD", "ADMIN"],
+    "defect.delete": ["QA_LEAD", "ADMIN"],
+    "run.manage": ["QA_LEAD", "ADMIN"],
+    "project.manage": ["QA_LEAD", "ADMIN"],
+    "audit.read": ["QA_LEAD", "ADMIN"],
+  };
+
+  it("covers every defined action", () => {
+    expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(ACTION_MIN_ROLE).sort());
+  });
+
+  for (const [action, allowed] of Object.entries(EXPECTED)) {
+    for (const role of ["VIEWER", "QA_ENGINEER", "QA_LEAD", "ADMIN"]) {
+      it(`${role} ${allowed.includes(role) ? "may" : "may not"} ${action}`, () => {
+        expect(can(role, action)).toBe(allowed.includes(role));
+      });
+    }
+  }
+
+  it("denies a missing role everything", () => {
+    for (const action of Object.keys(ACTION_MIN_ROLE)) expect(can(null, action)).toBe(false);
+  });
+
+  it("caps a project role at the global role", () => {
+    expect(effectiveProjectRole("VIEWER", "QA_LEAD")).toBe("VIEWER");
+    expect(effectiveProjectRole("QA_ENGINEER", "QA_LEAD")).toBe("QA_ENGINEER");
+    expect(effectiveProjectRole("QA_LEAD", null)).toBe(null);
+    expect(effectiveProjectRole("ADMIN", null)).toBe("ADMIN");
+  });
+});

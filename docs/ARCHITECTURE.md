@@ -44,6 +44,10 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - Reports (`services/reports.js`) reuse `computeProgress`/`sumCounts`, so the pass rate matches the dashboard and run pages. Runs are capped at 200 per report.
 - CSV endpoints are GET route handlers: validate the project id, `requireProject(..., "report.read")`, `Cache-Control: no-store`, serialise through `toCsv` (formula-injection guard).
 
+## Audit and security (Phase 6)
+- `services/audit-log.js` reads `audit_logs` (joined to users); project scope is applied by the page from the caller's role, never from a query parameter. Metadata is rendered as text only.
+- `authenticate()` counts failures in `login_attempts` per submitted email; the check runs before the bcrypt compare. Review and accepted risks live in `docs/SECURITY.md`.
+
 ## Roadmap
 | Phase | Scope | Status |
 |---|---|---|
@@ -52,5 +56,5 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | 3 | Suites, run creation with snapshots | done |
 | 4 | Execution UI, attachments, comments, history | done |
 | 5 | Defects, reports, CSV/print | done |
-| 6 | Audit log UI, permission/security review, test suite | |
+| 6 | Audit log UI, permission/security review, test suite | done |
 | 7 | Polish, docs | |

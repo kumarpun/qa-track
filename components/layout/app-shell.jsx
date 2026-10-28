@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ROLE_LABELS } from "@/lib/permissions";
+import { ROLE_LABELS, hasRole } from "@/lib/permissions";
 import { logoutAction } from "@/app/actions/auth";
 import { switchProjectAction } from "@/app/actions/projects";
 
@@ -145,7 +145,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
     });
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const visibleNav = NAV.filter((n) => n.href !== "/users" || user.role === "ADMIN");
+  const visibleNav = NAV.filter((n) => (n.href !== "/users" || user.role === "ADMIN") && (!n.minRole || hasRole(user.role, n.minRole)));
 
   return (
     <div className="flex min-h-screen">

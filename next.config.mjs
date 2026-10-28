@@ -4,6 +4,19 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Every page is per-user and reads the session cookie, so the app is fully dynamic;
   // Cache Components would force a Suspense boundary around every authenticated page.
+  poweredByHeader: false,
+  async headers() {
+    return [{
+      source: "/(.*)",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      ],
+    }];
+  },
   turbopack: {
     root: import.meta.dirname,
     rules: {
