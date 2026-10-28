@@ -38,6 +38,12 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - Run status transitions: Draft/In progress → Completed/Cancelled; closed → In progress (reopen). Every transition is audited.
 - Attachment authorization: upload needs `run.execute` on the execution's project; download needs membership; non-members get 404.
 
+## Defects and reports (Phase 5)
+- `defects.code` comes from `projects.defect_seq` (locked update), same as runs. `test_execution_defects` is the many-to-many link; FKs are RESTRICT, so `deleteDefect` pre-checks and returns 409 `DEFECT_LINKED`.
+- New permission `defect.delete` (QA Lead). Assignees must be active non-viewer project members (`assertAssignee`).
+- Reports (`services/reports.js`) reuse `computeProgress`/`sumCounts`, so the pass rate matches the dashboard and run pages. Runs are capped at 200 per report.
+- CSV endpoints are GET route handlers: validate the project id, `requireProject(..., "report.read")`, `Cache-Control: no-store`, serialise through `toCsv` (formula-injection guard).
+
 ## Roadmap
 | Phase | Scope | Status |
 |---|---|---|
@@ -45,6 +51,6 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | 2 | Test cases, steps, versions, CSV import/export, bulk actions | done |
 | 3 | Suites, run creation with snapshots | done |
 | 4 | Execution UI, attachments, comments, history | done |
-| 5 | Defects, reports, CSV/print | |
+| 5 | Defects, reports, CSV/print | done |
 | 6 | Audit log UI, permission/security review, test suite | |
 | 7 | Polish, docs | |

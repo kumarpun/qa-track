@@ -14,6 +14,10 @@ const TONES = {
   DRAFT: "bg-muted text-muted-foreground",
   IN_PROGRESS: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
   COMPLETED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  OPEN: "bg-red-500/15 text-red-700 dark:text-red-400",
+  REOPENED: "bg-red-500/15 text-red-700 dark:text-red-400",
+  FIXED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  CLOSED: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
   CANCELLED: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
 };
 

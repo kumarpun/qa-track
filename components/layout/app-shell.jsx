@@ -149,7 +149,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className={cn("sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar transition-[width] md:flex", collapsed ? "w-14" : "w-56")}>
+      <aside className={cn("print:!hidden sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar transition-[width] md:flex", collapsed ? "w-14" : "w-56")}>
         <div className="flex h-14 items-center justify-between border-b px-3">
           {!collapsed && <span className="font-semibold tracking-tight">TestTrack</span>}
           <Button variant="ghost" size="icon" onClick={toggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
@@ -180,7 +180,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
+        <header className="print:hidden sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" />}>
               <Menu />
