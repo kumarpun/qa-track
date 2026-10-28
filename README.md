@@ -21,7 +21,7 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 | `npm run test:e2e` | Playwright. Uses its own server (port 3100) and database `TEST_DB_NAME` (default `qa_platform_test`), which is migrated and seeded automatically; never touches `DB_NAME` |
 | `npm run build` | production build |
 
-## Status (Phase 6 complete)
+## Status (all 7 phases complete)
 Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, audit-log writes, 19-table normalized schema.
 
 Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), immutable versions (every content edit creates a new version; restoring an old version creates a new one), version history, duplicate, archive/restore, bulk actions (archive, restore, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
@@ -46,3 +46,25 @@ Columns: `code, title, description, preconditions, test_data, priority, type, au
 
 ## Known limitations
 - Lockout is per email (not per IP) and can be triggered by anyone who knows an address; see docs/SECURITY.md.
+- Sessions are stateless signed JWT cookies (8 h). There is no MFA, password reset or server-side session revocation.
+- No strict `script-src` CSP (Next.js inline scripts); other security headers are set.
+- Upload checks are extension/size based, and files are stored on local disk under `UPLOAD_DIR`. Use shared storage if you run more than one instance.
+- Run-case assignee UI is not built; any non-viewer project member can execute a case, not only assigned testers.
+- Comments are allowed on closed runs by design. Reports cover the 200 most recent runs.
+- TiDB does not support `LOCK IN SHARE MODE`; code uses `FOR UPDATE`.
+
+## Roles
+| Role | Can |
+|---|---|
+| Admin | everything, including users and all projects |
+| QA Lead | manage projects they belong to, create runs, delete defects, read the audit log |
+| QA Engineer | write cases, suites, defects; execute runs and comment |
+| Viewer | read and export only |
+
+Permissions are checked server-side in every Server Action and route handler (`lib/permissions.js`, `lib/server/dal.js`); hidden UI is never the only guard.
+
+## Deploying
+1. Provision a MySQL 8 / TiDB database and set `DB_*` (and `DB_SSL=true` for TLS) plus a fresh `AUTH_SECRET`.
+2. `npm run db:migrate` on every environment (migration 002 adds `login_attempts`).
+3. Do **not** run `db:seed` in production, or change the demo passwords immediately.
+4. `npm run build && npm start`; put it behind HTTPS and persist `UPLOAD_DIR`.

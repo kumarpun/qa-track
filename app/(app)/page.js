@@ -37,7 +37,7 @@ export default async function DashboardPage() {
           icon={FolderKanban}
           title="No projects yet"
           description={canCreateProject(user.role) ? "Create your first project to start managing test cases." : "Ask an Admin or QA Lead to add you to a project."}
-          action={canCreateProject(user.role) && <Button render={<Link href="/projects/new" />}>Create project</Button>}
+          action={canCreateProject(user.role) && <Button nativeButton={false} render={<Link href="/projects/new" />}>Create project</Button>}
         />
       </>
     );

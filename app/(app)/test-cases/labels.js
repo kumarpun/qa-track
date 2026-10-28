@@ -1,4 +1,4 @@
-const SPECIAL = { TO_BE_AUTOMATED: "To be automated", API: "API", UI: "UI" };
+const SPECIAL = { TO_BE_AUTOMATED: "To be automated", API: "API", UI: "UI", QA: "QA", IOS: "iOS", UAT: "UAT" };
 
 /** "TO_BE_AUTOMATED" → "To be automated" */
 export const label = (v) =>

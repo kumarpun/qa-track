@@ -12,7 +12,7 @@ export default async function ProjectsPage() {
   const user = await requireUserPage();
   const projects = await listProjects(user);
   const canCreate = canCreateProject(user.role);
-  const newBtn = canCreate && <Button render={<Link href="/projects/new" />}><Plus /> New project</Button>;
+  const newBtn = canCreate && <Button nativeButton={false} render={<Link href="/projects/new" />}><Plus /> New project</Button>;
   return (
     <>
       <PageHeader title="Projects" description="Projects isolate test cases, runs and defects." actions={newBtn} />

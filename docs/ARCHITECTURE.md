@@ -57,4 +57,4 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | 4 | Execution UI, attachments, comments, history | done |
 | 5 | Defects, reports, CSV/print | done |
 | 6 | Audit log UI, permission/security review, test suite | done |
-| 7 | Polish, docs | |
+| 7 | Polish, docs | done |
