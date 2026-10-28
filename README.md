@@ -18,7 +18,7 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 |---|---|
 | `npm run db:migrate` / `db:seed` / `db:setup` | schema + demo data |
 | `npm test` | Vitest unit tests |
-| `npm run test:e2e` | Playwright (starts/reuses the dev server; needs seeded DB) |
+| `npm run test:e2e` | Playwright. Uses its own server (port 3100) and database `TEST_DB_NAME` (default `qa_platform_test`), which is migrated and seeded automatically; never touches `DB_NAME` |
 | `npm run build` | production build |
 
 ## Status (Phase 1 complete)
@@ -28,5 +28,5 @@ Placeholders (later phases): test cases, suites, runs, execution, defects, repor
 
 ## Known limitations
 - No login rate limiting / lockout yet (planned Phase 6).
-- E2E tests currently run against the configured database and create a project per run; a dedicated test database is planned.
+- No login rate limiting yet (planned for Phase 6).
 - Global search currently targets test cases (module arrives in Phase 2).

@@ -2,13 +2,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Search, Moon, Sun, LogOut, User as UserIcon, ChevronsUpDown, Check } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Search, Moon, Sun, LogOut, User as UserIcon, ChevronsUpDown, Check, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NAV } from "./nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -143,6 +144,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
       return !c;
     });
 
+  const [mobileOpen, setMobileOpen] = useState(false);
   const visibleNav = NAV.filter((n) => n.href !== "/users" || user.role === "ADMIN");
 
   return (
@@ -179,6 +181,31 @@ export function AppShell({ user, projects, activeProjectId, children }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" />}>
+              <Menu />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <SheetTitle className="border-b px-4 py-3.5 font-semibold tracking-tight">TestTrack</SheetTitle>
+              <nav aria-label="Mobile" className="space-y-0.5 p-2">
+                {visibleNav.map(({ href, label, icon: Icon, exact }) => {
+                  const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn("flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground", active && "bg-accent font-medium text-accent-foreground")}
+                    >
+                      <Icon className="size-4 shrink-0" aria-hidden />
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </SheetContent>
+          </Sheet>
           <ProjectSwitcher projects={projects} activeId={activeProjectId} />
           <div className="hidden min-w-0 flex-1 lg:block"><Breadcrumbs /></div>
           <div className="ml-auto flex items-center gap-1">
