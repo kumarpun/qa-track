@@ -45,7 +45,7 @@ test("login locks out after repeated failures, with a generic error before that"
   }
   await login(page, email, "wrong-password-1");
   await expect(page.getByRole("alert").filter({ hasText: /Too many failed attempts/ })).toBeVisible();
-  // Lockout applies even to the correct password for that email key; demo accounts are unaffected.
+  // Lockout is keyed on the submitted email, so other accounts are unaffected.
   await login(page, "viewer@example.com");
   await expect(page).toHaveURL("/");
 });

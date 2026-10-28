@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined);
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !Number.isNaN(Date.parse(s))).optional().catch(undefined);
 const filterSchema = z.object({
   action: z.string().trim().max(64).optional().catch(undefined),
   entityType: z.string().trim().max(64).optional().catch(undefined),
