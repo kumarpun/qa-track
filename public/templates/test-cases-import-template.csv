@@ -1,0 +1,5 @@
+TC ID,Module,Test Case,Description,Pre-conditions,Test Steps,Test Data,Expected Result,Priority,Test Type,Automation,Tags,Requirement URL,Assignee Email,Additional Test Data
+,Auth,Login with valid credentials,Checks the happy path sign-in,User has an active account,Open the sign-in page,,Sign-in form is shown,HIGH,FUNCTIONAL,MANUAL,login;smoke,https://example.com/requirements/123,,
+,,,,,Enter a valid email and password,Email: user@example.com,Fields accept the input,,,,,,,
+,,,,,Select 'Sign in',,User lands on the dashboard,,,,,,,
+,Auth,Login with a wrong password,,User has an active account,Enter a valid email and a wrong password,Password: wrong-pass,An error message is shown and the user stays signed out,MEDIUM,FUNCTIONAL,MANUAL,login;negative,,,

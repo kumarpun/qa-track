@@ -9,6 +9,7 @@ const TONES = {
   SKIPPED: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
   RETEST: "bg-violet-500/15 text-violet-700 dark:text-violet-400",
   NOT_RUN: "bg-muted text-muted-foreground",
+  NOT_EXECUTED: "bg-muted text-muted-foreground",
   ACTIVE: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   ARCHIVED: "bg-muted text-muted-foreground",
   DRAFT: "bg-muted text-muted-foreground",

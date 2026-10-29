@@ -103,8 +103,7 @@ test("one defect links to many executions; linked defect cannot be deleted; repo
   for (const n of [1, 2]) {
     await lead.goto(runUrl);
     await lead.getByRole("link", { name: `Defect case ${id} ${n}` }).click();
-    const radio = lead.getByRole("radio", { name: "Failed", exact: true });
-    await lead.locator("label").filter({ has: radio }).click();
+    await lead.getByLabel("Status", { exact: true }).selectOption({ label: "Failed" });
     await lead.locator("#actualResult").fill("Broken");
     await lead.getByLabel(new RegExp(`Shared ${id}`)).check();
     await lead.getByRole("button", { name: "Save result" }).click();

@@ -4,6 +4,10 @@ const SPECIAL = { TO_BE_AUTOMATED: "To be automated", API: "API", UI: "UI", QA: 
 export const label = (v) =>
   SPECIAL[v] ?? String(v).replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
+export const CASE_STATUS_LABELS = {
+  PASSED: "Pass", FAILED: "Fail", BLOCKED: "Blocked", NOT_EXECUTED: "Not Executed", IN_PROGRESS: "In Progress", SKIPPED: "Skipped",
+};
+
 export const PRIORITY_TONE = {
   CRITICAL: "bg-red-500/15 text-red-700 dark:text-red-400",
   HIGH: "bg-orange-500/15 text-orange-700 dark:text-orange-400",

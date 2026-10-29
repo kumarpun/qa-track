@@ -3,15 +3,26 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { Pencil } from "lucide-react";
 import { projectCtxById } from "@/lib/server/page";
-import { getCase, getCaseProjectId, listVersions } from "@/lib/server/services/testcases";
+import { LocalTime } from "@/components/local-time";
+import { getCase, getCaseProjectId, listAutoRuns, listCaseComments, listCaseResults } from "@/lib/server/services/testcases";
+import { listSuites, suitesForCase } from "@/lib/server/services/suites";
 import { can } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { label, PRIORITY_TONE } from "../labels";
+import { label, CASE_STATUS_LABELS, PRIORITY_TONE } from "../labels";
 import { CaseActions } from "./case-actions";
-import { VersionHistory } from "./version-history";
+import { SampleFormat } from "../sample-format";
+import { StatusSelect } from "./status-select";
+import { SuitePicker } from "./suite-picker";
+import { StatusBadge } from "@/components/status-badge";
+import { browserRunsEnabled } from "@/lib/server/automation/config";
+import { RunInBrowser } from "./run-in-browser";
+import { ResultHistory } from "./result-history";
+import { mentionableMembers } from "@/lib/server/services/notifications";
+import { CommentList } from "@/components/comments/comment-list";
+import { toThreads } from "@/components/comments/format";
+import { addCaseCommentAction, updateCaseCommentAction, deleteCaseCommentAction } from "@/app/actions/testcases";
 
-const fmt = (d) => new Date(d).toISOString().replace("T", " ").slice(0, 16) + " UTC";
 
 function Meta({ name, children }) {
   return (
@@ -44,31 +55,34 @@ export default async function TestCaseDetailPage({ params }) {
   const ctx = await projectCtxById(projectId, "project.read");
   const tc = await getCase(ctx, id).catch(() => null);
   if (!tc) notFound();
-  const versions = await listVersions(ctx, id);
+  const [results, autoRuns, comments] = await Promise.all([listCaseResults(ctx, id), listAutoRuns(ctx, id), listCaseComments(ctx, id)]);
   const canWrite = can(ctx.role, "testcase.write");
+  const canRunBrowser = canWrite && browserRunsEnabled();
+  const canSuite = can(ctx.role, "suite.write");
+  const [caseSuites, allSuites] = await Promise.all([suitesForCase(ctx, id), canSuite ? listSuites(ctx) : []]);
 
   const steps = tc.steps;
   const withData = steps.map((s, i) => ({ i, text: s.testData })).filter((s) => s.text);
 
   return (
     <>
-      {tc.archivedAt && <p className="mb-4 rounded-md border bg-muted px-3 py-2 text-sm">This test case is archived. Restore it to edit or add it to new runs.</p>}
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm text-muted-foreground">Version {tc.currentVersion} · created by {tc.authorName}</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight"><span className="text-muted-foreground">{tc.code} · </span>{tc.title}</h1>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight">{tc.title}</h1>
             </div>
             {canWrite && (
               <div className="flex items-center gap-2">
-                {!tc.archivedAt && <Link href={`/test-cases/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
-                <CaseActions projectId={projectId} caseId={id} archived={Boolean(tc.archivedAt)} />
+                {canRunBrowser && <RunInBrowser projectId={projectId} caseId={id} />}
+                <Link href={`/test-cases/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>
+                <CaseActions projectId={projectId} caseId={id} />
               </div>
             )}
           </div>
 
+          <SampleFormat />
           {tc.preconditions && <Section title="Preconditions"><Text>{tc.preconditions}</Text></Section>}
           <Section title="Test steps">
             <div className="space-y-1.5">
@@ -85,13 +99,54 @@ export default async function TestCaseDetailPage({ params }) {
           </Section>
           {tc.testData && <Section title="Additional test data"><Text>{tc.testData}</Text></Section>}
 
-          <Section title="Version history">
-            <VersionHistory
+          {autoRuns.length > 0 && (
+            <Section title="Browser runs">
+              <ul className="space-y-4" data-testid="auto-runs">
+                {autoRuns.slice(0, 1).map((r) => ( // newest first; older runs stay in Result history
+                  <li key={r.id} className="space-y-2 rounded-lg border p-3 text-sm" data-testid="auto-run">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <StatusBadge status={r.status} label={CASE_STATUS_LABELS[r.status]} />
+                      <span className="text-muted-foreground"><LocalTime value={r.started_at} /></span>
+                      <span className="ml-auto text-muted-foreground">{r.triggered_by_name}</span>
+                    </div>
+                    <ol className="space-y-1">
+                      {r.log.map((l) => (
+                        <li key={l.n} className="flex gap-2">
+                          <span className={l.ok ? "text-emerald-600" : "text-red-600"} aria-label={l.ok ? "passed" : "failed"}>{l.ok ? "✓" : "✗"}</span>
+                          <span className="min-w-0 flex-1"><span>{l.line}</span><span className="block break-all text-xs text-muted-foreground">{l.detail}</span></span>
+                        </li>
+                      ))}
+                    </ol>
+                    {r.has_screenshot && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/auto-runs/${r.id}/screenshot`} alt="Screenshot at the failed step" className="max-h-80 rounded border" />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          <ResultHistory
               projectId={projectId}
               caseId={id}
-              current={tc.currentVersion}
-              canRestore={canWrite && !tc.archivedAt}
-              versions={versions.map((v) => ({ ...v, createdAt: fmt(v.createdAt) }))}
+              authorName={tc.authorName}
+              createdAt={tc.createdAt}
+              canDelete={canWrite}
+              rows={results.map((r) => ({ id: r.id, status: r.status, runId: r.run_id, runCaseId: r.run_case_id, runCode: r.run_code, runName: r.run_name, autoRun: !!r.auto_run_id, by: r.executed_by_name, at: r.executed_at }))}
+          />
+
+          <Section title={`Comments (${comments.length})`}>
+            <CommentList
+              projectId={projectId}
+              targetId={id}
+              threads={toThreads(comments, ctx.user.id)}
+              canEdit={canWrite}
+              userName={ctx.user.name}
+              members={await mentionableMembers(ctx)}
+              onAdd={addCaseCommentAction}
+              onUpdate={updateCaseCommentAction}
+              onDelete={deleteCaseCommentAction}
             />
           </Section>
         </div>
@@ -100,12 +155,19 @@ export default async function TestCaseDetailPage({ params }) {
           <div className="space-y-3">
             <h3 className="text-sm text-muted-foreground">Properties</h3>
             <dl className="space-y-3">
+              <Meta name="Status">{canWrite ? <StatusSelect projectId={projectId} caseId={id} status={tc.status} /> : <StatusBadge status={tc.status} label={CASE_STATUS_LABELS[tc.status]} />}</Meta>
               <Meta name="Priority"><Badge variant="secondary" className={PRIORITY_TONE[tc.priority]}>{label(tc.priority)}</Badge></Meta>
               <Meta name="Type">{label(tc.type)}</Meta>
               <Meta name="Automation">{label(tc.automation)}</Meta>
               <Meta name="Assignee">{tc.assigneeName}</Meta>
               <Meta name="Component">{tc.component}</Meta>
             </dl>
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-sm text-muted-foreground">Test suites</h3>
+            {canSuite
+              ? <SuitePicker projectId={projectId} caseId={id} suites={allSuites.map((s) => ({ id: s.id, name: s.name }))} memberOf={caseSuites.map((s) => s.id)} />
+              : caseSuites.length ? <div className="flex flex-wrap gap-1">{caseSuites.map((s) => <Badge key={s.id} variant="outline">{s.name}</Badge>)}</div> : <p className="text-sm text-muted-foreground">None</p>}
           </div>
           <div className="space-y-3">
             <h3 className="text-sm text-muted-foreground">Labels</h3>
@@ -123,8 +185,8 @@ export default async function TestCaseDetailPage({ params }) {
           <div className="space-y-3">
             <h3 className="text-sm text-muted-foreground">Activity</h3>
             <dl className="space-y-3">
-              <Meta name="Created">{fmt(tc.createdAt)}</Meta>
-              <Meta name="Updated">{fmt(tc.updatedAt)}</Meta>
+              <Meta name="Created"><LocalTime value={tc.createdAt} /></Meta>
+              <Meta name="Updated"><LocalTime value={tc.updatedAt} /></Meta>
             </dl>
           </div>
         </aside>

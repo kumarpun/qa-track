@@ -24,11 +24,11 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 ## Status (all 7 phases complete)
 Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, audit-log writes, 19-table normalized schema.
 
-Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), immutable versions (every content edit creates a new version; restoring an old version creates a new one), version history, duplicate, archive/restore, bulk actions (archive, restore, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
+Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), edited in place (no version history), a pass/fail result history per case across runs, duplicate, permanent delete with confirmation (blocked for cases used in runs), bulk actions (delete, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
 
-Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, archive/restore, duplicate), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** the latest version of every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
+Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, archive/restore, duplicate), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
 
-Phase 4 (execution): open a run case to see its frozen snapshot, record Passed / Failed / Blocked / Skipped / Retest with optional per-step results, actual result, comment, defect links (existing, or "Report new defect" inline) and attachments. Failed requires an actual result. Every save appends an execution row (append-only history); the run case shows its latest status. Retest stays in the pass-rate denominator, so it never inflates the rate. Runs can be completed, cancelled or reopened (results are rejected while a run is closed). Comments per run case; `/execution` lists open runs. Executing needs QA Engineer or above; Viewers are read-only.
+Phase 4 (execution): open a run case to see its frozen snapshot, record Passed / Failed / Blocked / Skipped / Retest with optional per-step results, actual result, comment, defect links (existing, or "Report new defect" inline) and attachments. Failed requires an actual result. Every save appends an execution row (append-only history); the run case shows its latest status. Retest stays in the pass-rate denominator, so it never inflates the rate. Runs can be completed, cancelled or reopened (results are rejected while a run is closed). Comments per run case; `/execution` lists open runs. Executing needs QA Engineer or above; Viewers are read-only. QA Lead or Admin can permanently delete a run (any status) from its page: results, comments and attachments go with it and vanish from case history, reports and dashboard trend; defects stay.
 
 Attachments are stored on local disk under `UPLOAD_DIR` (outside the web root, gitignored) with an extension allowlist (png, jpg, jpeg, gif, webp, pdf, txt, log, csv, json, mp4, webm, zip), 8 MB per file and 10 files per execution. Downloads go through `/api/attachments/:id`, which checks project membership, sends `nosniff` and a sandbox CSP, and only renders images inline.
 
@@ -38,7 +38,7 @@ Phase 6 (audit and security): `/audit-log` (QA Lead: active project; Admin: ever
 
 ### CSV format
 One row per step. A row with a `title` starts a new case; following rows with only step columns add steps to it.
-Columns: `code, title, description, preconditions, test_data, priority, type, automation, component, tags, requirement_url, assignee_email, step_action, step_data, step_expected`.
+Columns: `TC ID, Module, Test Case, Description, Pre-conditions, Test Steps, Test Data, Expected Result, Priority, Test Type, Automation, Tags, Requirement URL, Assignee Email, Additional Test Data`. Header names are matched loosely (and the older snake_case names still work); required: Test Case, Test Steps, Expected Result. A template is served at `/templates/test-cases-import-template.csv`.
 - `code` is ignored on import; new codes are assigned.
 - `tags` are separated by `;` or `|`. Commas are not separators (they would break the CSV column).
 - Import is all-or-nothing: every bad row is reported with its line number and nothing is written. Limits: 500 cases, 2 MB.
@@ -65,7 +65,37 @@ A global role caps project roles: a global Viewer listed as a project QA Lead st
 
 ## Deploying
 1. Provision a MySQL 8 / TiDB database and set `DB_*` (and `DB_SSL=true` for TLS) plus a fresh `AUTH_SECRET`.
-2. `npm run db:migrate` on every environment (migration 002 adds `login_attempts`).
+2. `npm run db:migrate` on every environment (migration 006 drops the case version history).
 3. Do **not** run `db:seed` in production, or change the demo passwords immediately.
 4. `npm run build && npm start`; put it behind HTTPS and persist `UPLOAD_DIR`.
 - Global search (header) searches test cases of the active project only; runs and defects have their own list searches.
+
+## @mentions and notifications
+
+Type `@` in a comment (test case or run case) to pick a project member; the comment stores the mention as `@[Name](user-id)` and shows it as a chip. Mentioned users get an entry under the bell icon in the header (unread badge, refreshed every 60 s and on navigation); clicking it marks it read and opens the exact test case or run case. Rules: the author is never notified; only active project members (or Admins) are notified; one notification per comment and user, so editing a comment only notifies newly added mentions; deleting the comment removes its notifications (FK cascade). "Mark all read" clears the badge. Needs migration 009 (`node scripts/migrate.mjs`). Names are matched on submit, so two members with the same display name are ambiguous.
+
+## Run a test case in a real browser
+
+On a test case page, **Run in browser** opens a visible Chromium window on the machine running the server and executes the case's steps, then sets the case to Pass/Fail and stores a per-step log (plus a screenshot on failure) under *Browser runs*.
+
+The same button on a **test suite** page runs every case in the suite one after another and shows a pass/fail summary; cases that are not runnable count as not passed and keep their status.
+
+On a **run case** page (needs QA Engineer or above, run open), the same button runs the run's frozen snapshot steps and records the outcome as a normal execution (Passed/Failed, with the step log in the comment), so the run, reports and dashboard update like a manual result. Not-runnable cases are refused and nothing is recorded.
+
+A **Visible / Headless** picker sits next to the button (remembered in your browser; `BROWSER_RUNS_HEADLESS=1` is no longer needed). Visible mode holds the window briefly and slows actions so you can watch.
+
+Setup: `npx playwright install chromium`, set `ENABLE_BROWSER_RUNS=1` in `.env`, run `node scripts/migrate.mjs`. Local use only: the server visits URLs written in test cases, so keep it off elsewhere.
+
+Steps must use this wording (one instruction per line, numbering optional, case-insensitive). Any other line makes the case "not runnable" and nothing is changed:
+
+| Line | Meaning |
+|---|---|
+| `Visit` / `Open` / `Go to <url>` | open an http(s) URL |
+| `Click` / `Select` / `Press <text>` | click a link, button or text; a trailing "button"/"link" is ignored (spacing/case ignored: `login` finds "Log in") |
+| `Type <value> into <field>` or `Enter <field>: <value>` | fill an input found by label or placeholder; qualifiers like "invalid"/"valid" are ignored (`Enter invalid email format: x` fills the email input) |
+| `Text should present: <text>` / `Should see <text>` | wait for text on the page |
+| `Validation message: '<text>'` | text on the page, or an input's own browser validation message (expected result) |
+| `Form does not submit` | the URL is unchanged after the last click (negative test; combine with `;`, e.g. `Validation message: 'Bad email'; form does not submit`) |
+| `Should navigate to url: <url>` | the browser must be on that URL (put in *Expected result*) |
+
+**Safety.** Steps never reach the database: they only drive the browser, and results are saved with parameterized queries. The browser runs in a fresh, cookie-less profile and can only visit public web pages. Requests to `localhost`, private/internal networks, cloud metadata (`169.254.x.x`) and `DB_HOST` are blocked, including redirects, subresources and hostnames that resolve to such addresses (`lib/server/automation/url-guard.js`). `BROWSER_RUNS_ALLOW_PRIVATE=1` re-allows loopback/private targets for testing a local site; metadata addresses and `DB_HOST` stay blocked.

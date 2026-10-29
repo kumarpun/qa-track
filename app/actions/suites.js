@@ -4,6 +4,7 @@ import { z } from "zod";
 import { run } from "@/lib/server/action";
 import { requireProject } from "@/lib/server/dal";
 import { suiteSchema, idList } from "@/lib/validation/suite";
+import { CASE_STATUSES } from "@/lib/validation/testcase";
 import * as svc from "@/lib/server/services/suites";
 
 const uuidSchema = z.string().uuid();
@@ -23,6 +24,41 @@ export async function updateSuiteAction(projectId, suiteId, input) {
   return run(suiteSchema, input, async (data) => {
     await svc.updateSuite(await ctxFor(projectId), uuidSchema.parse(suiteId), data);
     refresh();
+  });
+}
+
+export async function deleteSuiteAction(projectId, suiteId) {
+  return run(z.string().uuid(), suiteId, async (id) => {
+    const pid = uuidSchema.parse(projectId);
+    await requireProject(pid, "testcase.write"); // deleting a suite deletes its cases
+    const res = await svc.deleteSuite(await ctxFor(pid), id);
+    revalidatePath("/test-cases", "layout");
+    refresh();
+    return res;
+  });
+}
+
+export async function setSuiteStatusAction(projectId, suiteId, status) {
+  return run(z.enum(CASE_STATUSES), status, async (s) => {
+    const res = await svc.setSuiteCasesStatus(await requireProject(uuidSchema.parse(projectId), "testcase.write"), uuidSchema.parse(suiteId), s);
+    revalidatePath("/test-cases", "layout");
+    refresh();
+    return res;
+  });
+}
+
+export async function fillSuiteStatusAction(projectId, suiteIds, status) {
+  return run(z.object({ ids: z.array(z.string().uuid()).min(1).max(200), status: z.enum(CASE_STATUSES) }), { ids: suiteIds, status }, async (d) => {
+    const ctx = await requireProject(uuidSchema.parse(projectId), "testcase.write");
+    let affected = 0, total = 0;
+    for (const id of new Set(d.ids)) {
+      const r = await svc.setSuiteCasesStatus(ctx, id, d.status);
+      affected += r.affected;
+      total += r.total;
+    }
+    revalidatePath("/test-cases", "layout");
+    refresh();
+    return { affected, total };
   });
 }
 
@@ -46,6 +82,13 @@ export async function addCasesAction(projectId, suiteId, caseIds) {
     const res = await svc.addCases(await ctxFor(projectId), uuidSchema.parse(suiteId), ids);
     refresh();
     return res;
+  });
+}
+
+export async function setCaseSuiteAction(projectId, caseId, suiteId) {
+  return run(z.string().uuid().nullable(), suiteId, async (sid) => {
+    await svc.setCaseSuite(await ctxFor(projectId), uuidSchema.parse(caseId), sid);
+    refresh();
   });
 }
 

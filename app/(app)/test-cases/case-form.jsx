@@ -1,8 +1,9 @@
 "use client";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { PRIORITIES, TYPES, AUTOMATION } from "@/lib/validation/testcase";
 import { createCaseAction, updateCaseAction } from "@/app/actions/testcases";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/native-select";
 import { label } from "./labels";
+import { LabelPicker } from "./label-picker";
+import { SampleFormat, SAMPLE_STEPS } from "./sample-format";
 
 function Section({ id, title, error, hint, children }) {
   return (
@@ -46,11 +49,14 @@ const mergeSteps = (steps, key) => {
 };
 
 /** Tags are entered comma-separated and URLs one per line; both are normalised on submit and validated again by Zod on the server. */
-export function CaseForm({ projectId, members, initial, caseId }) {
+export function CaseForm({ projectId, members, initial, caseId, suite }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const editing = Boolean(caseId);
-  const { register, handleSubmit, setError, formState: { errors } } = useForm({
+  const [showPre, setShowPre] = useState(Boolean(initial?.preconditions));
+  const hasData = initial?.steps?.some((st) => st.testData);
+  const [showData, setShowData] = useState(Boolean(hasData));
+  const { register, control, handleSubmit, setError, setFocus, formState: { errors } } = useForm({
     defaultValues: {
       title: initial?.title ?? "",
       preconditions: initial?.preconditions ?? "",
@@ -62,7 +68,6 @@ export function CaseForm({ projectId, members, initial, caseId }) {
       requirementUrl: initial?.requirementUrl ?? "",
       defectUrlsText: (initial?.defectUrls ?? []).join("\n"),
       assigneeId: initial?.assigneeId ?? "",
-      changeNote: "",
       stepAction: mergeSteps(initial?.steps, "action"),
       stepData: mergeSteps(initial?.steps, "testData"),
       stepExpected: mergeSteps(initial?.steps, "expected"),
@@ -80,7 +85,7 @@ export function CaseForm({ projectId, members, initial, caseId }) {
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         defectUrls: defectUrlsText.split("\n").map((t) => t.trim()).filter(Boolean),
       };
-      const res = editing ? await updateCaseAction(projectId, caseId, input) : await createCaseAction(projectId, input);
+      const res = editing ? await updateCaseAction(projectId, caseId, input) : await createCaseAction(projectId, input, suite?.id);
       if (!res.ok) {
         for (const [k, m] of Object.entries(res.fieldErrors ?? {})) {
           const step = k.match(/^steps\.0\.(action|testData|expected)$/)?.[1];
@@ -90,11 +95,11 @@ export function CaseForm({ projectId, members, initial, caseId }) {
         return toast.error(res.error);
       }
       if (editing) {
-        toast.success(res.data.changed ? `Saved as version ${res.data.version}` : "No changes to save");
+        toast.success(res.data.changed ? "Saved" : "No changes to save");
         router.push(`/test-cases/${caseId}`);
       } else {
-        toast.success(`Created ${res.data.code}`);
-        router.push(`/test-cases/${res.data.id}`);
+        toast.success(suite ? `Created ${res.data.code} and added it to ${suite.name}` : `Created ${res.data.code}`);
+        router.push(suite ? `/test-suites/${suite.id}` : `/test-cases/${res.data.id}`);
       }
       router.refresh();
     });
@@ -119,23 +124,53 @@ export function CaseForm({ projectId, members, initial, caseId }) {
         </div>
         {typeof errors.steps?.message === "string" && <p role="alert" className="px-2.5 text-xs text-destructive">{errors.steps.message}</p>}
 
-        <Section id="preconditions" title="Preconditions" error={errors.preconditions?.message}>
-          <Textarea id="preconditions" rows={1} placeholder="Preconditions: what must be true before starting" className={`${quiet} min-h-9`} {...register("preconditions")} />
-        </Section>
+        {!editing && <SampleFormat className="mr-2" />}
+        {showPre ? (
+          <Section id="preconditions" title="Preconditions" error={errors.preconditions?.message}>
+            <Textarea
+              id="preconditions"
+              rows={1}
+              autoFocus={!initial?.preconditions}
+              placeholder="Preconditions: what must be true before starting"
+              className={`${quiet} min-h-9`}
+              {...register("preconditions", { onBlur: (e) => { if (!e.target.value.trim()) setShowPre(false); } })}
+            />
+          </Section>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setShowPre(true); setTimeout(() => setFocus("preconditions"), 0); }}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            <Plus className="size-3" /> Preconditions
+          </button>
+        )}
         <Section id="stepAction" title="Test steps" error={errors.stepAction?.message}>
-          <Textarea id="stepAction" rows={10} placeholder={"Test steps\n1. Open the app\n2. Go to the sign-up page\n3. Select 'Sign Up'"} className={`${quiet} min-h-64`} {...register("stepAction", { required: "Test steps are required" })} />
+          <Textarea id="stepAction" rows={10} placeholder={`Test steps\n${SAMPLE_STEPS}`} className={`${quiet.replace("border-transparent ", "")} min-h-64`} {...register("stepAction", { required: "Test steps are required" })} />
         </Section>
-        <Section id="stepData" title="Test data" error={errors.stepData?.message}>
-          <Textarea id="stepData" rows={1} placeholder="Test data, e.g. Email: test@example.com" className={`${quiet} min-h-9`} {...register("stepData")} />
-        </Section>
+        {showData ? (
+          <Section id="stepData" title="Test data" error={errors.stepData?.message}>
+            <Textarea
+              id="stepData"
+              rows={1}
+              autoFocus={!hasData}
+              placeholder="Test data, e.g. Email: test@example.com"
+              className={`${quiet} min-h-9`}
+              {...register("stepData", { onBlur: (e) => { if (!e.target.value.trim()) setShowData(false); } })}
+            />
+          </Section>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setShowData(true); setTimeout(() => setFocus("stepData"), 0); }}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            <Plus className="size-3" /> Test data
+          </button>
+        )}
         <Section id="stepExpected" title="Expected result" error={errors.stepExpected?.message}>
           <Textarea id="stepExpected" rows={1} placeholder="Expected result: what should happen" className={`${quiet} min-h-9`} {...register("stepExpected", { required: "Expected result is required" })} />
         </Section>
-        {editing && (
-          <Section id="changeNote" title="Change note" error={errors.changeNote?.message}>
-            <Input id="changeNote" placeholder="Change note (optional, shown in version history)" className={quiet} {...register("changeNote")} />
-          </Section>
-        )}
 
         <div className="flex gap-2">
           <Button type="submit" disabled={pending}>{pending ? "Saving…" : editing ? "Save changes" : "Create test case"}</Button>
@@ -162,7 +197,13 @@ export function CaseForm({ projectId, members, initial, caseId }) {
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground">Labels</h3>
           <Label htmlFor="tagsText" className="sr-only">Tags</Label>
-          <Input id="tagsText" placeholder="login, smoke" className={quiet} {...register("tagsText")} />
+          <Controller
+            name="tagsText"
+            control={control}
+            render={({ field }) => (
+              <LabelPicker id="tagsText" value={field.value.split(",").map((t) => t.trim()).filter(Boolean)} onChange={(tags) => field.onChange(tags.join(", "))} />
+            )}
+          />
           {errors.tagsText && <p role="alert" className="text-xs text-destructive">{errors.tagsText.message}</p>}
         </div>
         <div className="space-y-2">

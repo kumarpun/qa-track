@@ -20,7 +20,7 @@ export default async function TestCasesPage({ searchParams }) {
   const [result, members] = await Promise.all([listCases(ctx, params), listMembers(ctx.project.id)]);
   const exportQs = new URLSearchParams({ project: ctx.project.id });
   for (const [k, v] of Object.entries(params)) if (v && !["page", "sort", "dir"].includes(k)) exportQs.set(k, String(v));
-  const filtered = Boolean(params.q || params.priority || params.type || params.automation || params.assignee || params.tag || params.status !== "active");
+  const filtered = Boolean(params.q || params.priority || params.type || params.automation || params.assignee || params.tag);
 
   return (
     <>
@@ -46,7 +46,7 @@ export default async function TestCasesPage({ searchParams }) {
       ) : (
         <CaseList
           projectId={ctx.project.id}
-          rows={result.rows.map((r) => ({ ...r, archived_at: r.archived_at ? 1 : 0, updated_at: new Date(r.updated_at).toISOString() }))}
+          rows={result.rows.map((r) => ({ ...r, updated_at: new Date(r.updated_at).toISOString() }))}
           page={result.page}
           pages={result.pages}
           total={result.total}

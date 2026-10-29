@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { label } from "../../test-cases/labels";
 import { SuiteActions } from "./suite-actions";
 import { SuiteCases } from "./suite-cases";
+import { RunSuiteInBrowser } from "./run-suite-in-browser";
+import { browserRunsEnabled } from "@/lib/server/automation/config";
 
 export default async function SuiteDetailPage({ params }) {
   const { id } = await params;
@@ -24,6 +26,7 @@ export default async function SuiteDetailPage({ params }) {
   const archived = Boolean(suite.archived_at);
   const canWrite = can(ctx.role, "suite.write");
   const canRun = can(ctx.role, "run.manage");
+  const canRunBrowser = can(ctx.role, "testcase.write") && browserRunsEnabled() && !archived;
 
   return (
     <>
@@ -32,9 +35,10 @@ export default async function SuiteDetailPage({ params }) {
         description={[suite.parent_name && `Inside ${suite.parent_name}`, suite.feature, suite.type && label(suite.type), `created by ${suite.created_by_name}`].filter(Boolean).join(" · ")}
         actions={
           <>
+            {canRunBrowser && <RunSuiteInBrowser projectId={projectId} caseIds={suite.cases.map((c) => c.id)} />}
             {canRun && !archived && <Link href={`/test-runs/new?suite=${id}`} className={buttonVariants({ size: "sm" })}><PlayCircle /> Create run</Link>}
             {canWrite && !archived && <Link href={`/test-suites/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
-            {canWrite && <SuiteActions projectId={projectId} suiteId={id} archived={archived} />}
+            {canWrite && <SuiteActions projectId={projectId} suiteId={id} archived={archived} caseCount={suite.cases.length} canDelete={can(ctx.role, "testcase.write")} />}
           </>
         }
       />
@@ -62,7 +66,9 @@ export default async function SuiteDetailPage({ params }) {
             projectId={projectId}
             suiteId={id}
             editable={canWrite && !archived}
-            cases={suite.cases.map((c) => ({ id: c.id, code: c.code, title: c.title, priority: c.priority, archived: Boolean(c.archived_at), version: c.current_version }))}
+            canSetStatus={can(ctx.role, "testcase.write") && !archived}
+            canCreate={can(ctx.role, "testcase.write")}
+            cases={suite.cases.map((c) => ({ id: c.id, code: c.code, title: c.title, priority: c.priority, status: c.status }))}
           />
         </CardContent>
       </Card>

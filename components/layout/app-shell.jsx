@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationBell } from "./notification-bell";
 import { ROLE_LABELS, hasRole } from "@/lib/permissions";
 import { logoutAction } from "@/app/actions/auth";
 import { switchProjectAction } from "@/app/actions/projects";
@@ -211,6 +212,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
           <div className="ml-auto flex items-center gap-1">
             <GlobalSearch />
             <ThemeToggle />
+            <NotificationBell />
             <UserMenu user={user} />
           </div>
         </header>

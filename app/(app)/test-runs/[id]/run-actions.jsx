@@ -1,9 +1,9 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCheck, RotateCcw, XCircle } from "lucide-react";
+import { CheckCheck, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { setRunStatusAction } from "@/app/actions/runs";
+import { deleteRunAction, setRunStatusAction } from "@/app/actions/runs";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -26,6 +26,15 @@ export function RunActions({ projectId, runId, status }) {
       router.refresh();
     });
 
+  const remove = () =>
+    start(async () => {
+      const res = await deleteRunAction(projectId, runId);
+      if (!res.ok) return toast.error(res.error);
+      toast.success("Run deleted");
+      router.push("/test-runs");
+      router.refresh();
+    });
+
   return (
     <>
       {open ? (
@@ -36,7 +45,18 @@ export function RunActions({ projectId, runId, status }) {
       ) : (
         <Button size="sm" variant="outline" disabled={pending} onClick={() => change("IN_PROGRESS", "Run reopened")}><RotateCcw /> Reopen run</Button>
       )}
-      {confirm && (
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => setConfirm("DELETE")}><Trash2 /> Delete</Button>
+      {confirm === "DELETE" && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title="Delete this run permanently?"
+          description="All its results, step results, comments and attachments are removed, and they disappear from case Result history, reports and the dashboard trend. Defects raised from it are kept. This cannot be undone."
+          confirmLabel="Delete run"
+          onConfirm={() => { setConfirm(null); remove(); }}
+        />
+      )}
+      {confirm && confirm !== "DELETE" && (
         <ConfirmDialog
           open
           onOpenChange={(o) => !o && setConfirm(null)}

@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+/* Spreadsheet-style fill: cells covered by a drag get a blue tint and dashed outline until release. */
+[data-fill-group] { position: relative; }
+[data-fill-active]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: color-mix(in oklab, #3b82f6 28%, transparent);
+  outline: 2px dashed #3b82f6;
+  outline-offset: -2px;
+}

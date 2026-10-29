@@ -1,24 +1,26 @@
 "use client";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PRIORITIES, TYPES, AUTOMATION } from "@/lib/validation/testcase";
-import { bulkAction } from "@/app/actions/testcases";
+import { PRIORITIES, TYPES, AUTOMATION, CASE_STATUSES } from "@/lib/validation/testcase";
+import { bulkAction, fillCaseStatusAction } from "@/app/actions/testcases";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NativeSelect } from "@/components/native-select";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { label, PRIORITY_TONE } from "./labels";
+import { StatusBadge } from "@/components/status-badge";
+import { StatusSelect } from "./[id]/status-select";
+import { label, CASE_STATUS_LABELS, PRIORITY_TONE } from "./labels";
 
 const SORTABLE = [
-  ["code", "Code"],
   ["title", "Title"],
   ["priority", "Priority"],
   ["type", "Type"],
   ["updated_at", "Updated"],
+  ["suite", "Test suites"],
 ];
 
 export function CaseList({ projectId, rows, page, pages, total, params, canWrite, members }) {
@@ -27,7 +29,7 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
   const sp = useSearchParams();
   const [selected, setSelected] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
-  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const go = (patch) => {
     const next = new URLSearchParams(sp.toString());
@@ -43,6 +45,16 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
   const runBulk = (op, value) =>
     startTransition(async () => {
       const res = await bulkAction(projectId, { ids: [...selected], op, value });
+      if (res.ok) {
+        toast.success(`${op === "delete" ? "Deleted" : "Updated"} ${res.data?.affected ?? 0} of ${selected.size} test case(s)`);
+        setSelected(new Set());
+        router.refresh();
+      } else toast.error(res.error);
+    });
+
+  const setResult = (status) =>
+    startTransition(async () => {
+      const res = await fillCaseStatusAction(projectId, [...selected], status);
       if (res.ok) {
         toast.success(`Updated ${res.data?.affected ?? 0} of ${selected.size} test case(s)`);
         setSelected(new Set());
@@ -63,26 +75,29 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
     </NativeSelect>
   );
   const opts = (list) => list.map((v) => ({ value: v, label: label(v) }));
-  const archivedView = params.status === "archived";
 
   return (
     <div className="space-y-3">
       {canWrite && selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2" role="region" aria-label="Bulk actions">
           <span className="px-1 text-sm font-medium">{selected.size} selected</span>
+          <NativeSelect aria-label="Set result" className="w-auto" value="" disabled={pending} onChange={(e) => e.target.value && setResult(e.target.value)}>
+            <option value="">Set result…</option>
+            {CASE_STATUSES.map((v) => <option key={v} value={v}>{CASE_STATUS_LABELS[v]}</option>)}
+          </NativeSelect>
           {pick("priority", opts(PRIORITIES))}
           {pick("type", opts(TYPES))}
           {pick("automation", opts(AUTOMATION))}
           {pick("assign", [{ value: "__none", label: "Unassigned" }, ...members.map((m) => ({ value: m.id, label: m.name }))])}
-          {archivedView
-            ? <Button size="sm" variant="outline" disabled={pending} onClick={() => runBulk("restore")}>Restore</Button>
-            : <Button size="sm" variant="outline" disabled={pending} onClick={() => setConfirmArchive(true)}>Archive</Button>}
+          <Button size="icon-sm" variant="outline" aria-label="Delete selected" title="Delete selected" disabled={pending} onClick={() => setConfirmDelete(true)}>
+            <Trash2 className="text-destructive" />
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
         </div>
       )}
 
-      <div className="rounded-lg border">
-        <Table>
+      <div className="overflow-hidden rounded-lg border">
+        <Table className="[&_td]:border-r [&_th]:border-r [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
           <TableHeader>
             <TableRow>
               {canWrite && (
@@ -91,12 +106,15 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                 </TableHead>
               )}
               {SORTABLE.map(([col, text]) => (
-                <TableHead key={col}>
+                <Fragment key={col}>
+                <TableHead>
                   <button type="button" className="inline-flex items-center gap-1 font-medium hover:text-foreground" onClick={() => sortBy(col)}>
                     {text}
                     {params.sort === col && (params.dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                   </button>
                 </TableHead>
+                {col === "title" && <TableHead className="w-40">Results</TableHead>}
+                </Fragment>
               ))}
               <TableHead>Assignee</TableHead>
               <TableHead>Tags</TableHead>
@@ -110,16 +128,20 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                     <input type="checkbox" aria-label={`Select ${r.code}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                   </TableCell>
                 )}
-                <TableCell className="font-mono text-xs whitespace-nowrap">
-                  <Link href={`/test-cases/${r.id}`} className="hover:underline">{r.code}</Link>
-                </TableCell>
                 <TableCell className="max-w-md">
                   <Link href={`/test-cases/${r.id}`} className="hover:underline">{r.title}</Link>
-                  {r.archived_at ? <Badge variant="outline" className="ml-2">Archived</Badge> : null}
+                </TableCell>
+                <TableCell className="p-0">
+                  {canWrite
+                    ? <StatusSelect projectId={projectId} caseId={r.id} status={r.status} filled fillGroup="cases" ariaLabel={`Result for ${r.code}`} />
+                    : <div className="px-2.5 py-2"><StatusBadge status={r.status} label={CASE_STATUS_LABELS[r.status]} /></div>}
                 </TableCell>
                 <TableCell><Badge className={PRIORITY_TONE[r.priority]} variant="secondary">{label(r.priority)}</Badge></TableCell>
                 <TableCell className="text-sm">{label(r.type)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{r.updated_at.slice(0, 10)}</TableCell>
+                <TableCell className="text-sm">
+                  {r.suites.length ? r.suites.join(", ") : <span className="text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell className="text-sm">{r.assignee_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
@@ -142,12 +164,12 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
       </div>
 
       <ConfirmDialog
-        open={confirmArchive}
-        onOpenChange={setConfirmArchive}
-        title={`Archive ${selected.size} test case(s)?`}
-        description="Archived cases are hidden from the default list and cannot be edited until restored. Existing test runs are not affected."
-        confirmLabel="Archive"
-        onConfirm={() => runBulk("archive")}
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${selected.size} test case(s) permanently?`}
+        description="This cannot be undone. The selected test cases, their steps and suite membership are removed from the database. If any of them is part of a test run, nothing is deleted."
+        confirmLabel="Delete"
+        onConfirm={() => runBulk("delete")}
       />
     </div>
   );

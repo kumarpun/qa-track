@@ -6,6 +6,12 @@ import { importCsvAction } from "@/app/actions/testcases";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+const FIELD_LABEL = {
+  testData: "test_data", requirementUrl: "requirement_url", assigneeEmail: "assignee_email",
+  stepAction: "step_action", stepData: "step_data", stepExpected: "step_expected",
+  severity: "label severity:…", notes: "description (remarks)",
+};
+
 export function ImportForm({ projectId, headers }) {
   const router = useRouter();
   const [text, setText] = useState(null);
@@ -38,6 +44,8 @@ export function ImportForm({ projectId, headers }) {
     });
 
   const errors = preview?.errors ?? [];
+  const mapping = (preview?.mapping ?? []).filter((m) => m.field !== "code");
+  const ignored = preview?.ignored ?? [];
 
   return (
     <div className="max-w-3xl space-y-4">
@@ -46,8 +54,11 @@ export function ImportForm({ projectId, headers }) {
           <label htmlFor="csv" className="text-sm font-medium">CSV file</label>
           <input id="csv" type="file" accept=".csv,text/csv" onChange={onFile} className="block w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium" />
           <p className="text-xs text-muted-foreground">
-            One row per step. A row with a title starts a new case; following rows with only step columns add steps to it.
-            Columns: <code className="font-mono">{headers.join(", ")}</code>. The <code className="font-mono">code</code> column is ignored; new codes are assigned.
+            One row per step. A row with a test case name starts a new case; following rows with only step columns add steps to it.
+            Column names are matched automatically, so other spreadsheets work too. Required: <code className="font-mono">Test Case</code>, <code className="font-mono">Test Steps</code>, <code className="font-mono">Expected Result</code>.
+            Others: <code className="font-mono">{headers.filter((h) => !["Test Case", "Test Steps", "Expected Result"].includes(h)).join(", ")}</code>.
+            The <code className="font-mono">TC ID</code> column is ignored; new codes are assigned.{" "}
+            <a href="/templates/test-cases-import-template.csv" download className="font-medium text-primary underline">Download the template CSV</a> to see the expected headers with example rows.
           </p>
         </CardContent>
       </Card>
@@ -55,6 +66,15 @@ export function ImportForm({ projectId, headers }) {
       {preview && (
         <Card>
           <CardContent className="space-y-3 pt-6" data-testid="import-preview">
+            {mapping.length > 0 && (
+              <div className="space-y-1" data-testid="import-mapping">
+                <p className="text-sm font-medium">Detected columns</p>
+                <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {mapping.map((m) => <li key={m.field}><span className="text-foreground">{m.column}</span> → <span className="font-mono">{FIELD_LABEL[m.field] ?? m.field}</span></li>)}
+                </ul>
+                {ignored.length > 0 && <p className="text-xs text-muted-foreground">Not imported: {ignored.join(", ")}</p>}
+              </div>
+            )}
             {errors.length === 0 ? (
               <>
                 <p className="text-sm"><strong>{preview.valid}</strong> test case(s) ready to import from <em>{fileName}</em>.</p>

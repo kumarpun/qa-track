@@ -18,6 +18,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: false,
     timeout: 120000,
-    env: { DB_NAME: TEST_DB_NAME, NEXT_DIST_DIR: ".next-e2e" },
+    env: { DB_NAME: TEST_DB_NAME, NEXT_DIST_DIR: ".next-e2e", ENABLE_BROWSER_RUNS: "1", BROWSER_RUNS_HEADLESS: "1", BROWSER_RUNS_ALLOW_PRIVATE: "1" },
   },
 });

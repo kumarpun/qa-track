@@ -67,7 +67,6 @@ export default async function RunDetailPage({ params }) {
               <TableHead>Code</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Priority</TableHead>
-              <TableHead>Snapshot</TableHead>
               <TableHead>Steps</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -79,7 +78,6 @@ export default async function RunDetailPage({ params }) {
                 <TableCell className="font-mono text-xs">{c.code}</TableCell>
                 <TableCell><Link className="hover:underline" href={`/test-runs/${run.id}/cases/${c.id}`}>{c.title}</Link></TableCell>
                 <TableCell><Badge variant="secondary" className={PRIORITY_TONE[c.priority]}>{label(c.priority)}</Badge></TableCell>
-                <TableCell>v{c.version}</TableCell>
                 <TableCell>{c.stepCount}</TableCell>
                 <TableCell><StatusBadge status={c.status} /></TableCell>
               </TableRow>

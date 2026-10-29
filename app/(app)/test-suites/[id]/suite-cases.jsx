@@ -2,22 +2,28 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, FilePlus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { fillCaseStatusAction } from "@/app/actions/testcases";
+import { NativeSelect } from "@/components/native-select";
+import { CASE_STATUSES } from "@/lib/validation/testcase";
 import { addCasesAction, removeCaseAction, reorderCasesAction, searchPickableCasesAction } from "@/app/actions/suites";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PRIORITY_TONE, label } from "../../test-cases/labels";
+import { StatusBadge } from "@/components/status-badge";
+import { StatusSelect } from "../../test-cases/[id]/status-select";
+import { CASE_STATUS_LABELS, PRIORITY_TONE, label } from "../../test-cases/labels";
 
 /** Ordered case list with up/down reorder, removal and an add-cases picker. Order persists on every move. */
-export function SuiteCases({ projectId, suiteId, cases, editable }) {
+export function SuiteCases({ projectId, suiteId, cases, editable, canSetStatus, canCreate }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [picking, setPicking] = useState(false);
   const [q, setQ] = useState("");
   const [options, setOptions] = useState([]);
   const [chosen, setChosen] = useState(() => new Set());
+  const [marked, setMarked] = useState(() => new Set());
 
   useEffect(() => {
     if (!picking) return;
@@ -55,18 +61,52 @@ export function SuiteCases({ projectId, suiteId, cases, editable }) {
     });
   const toggle = (id) => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  const allMarked = cases.length > 0 && cases.every((c) => marked.has(c.id));
+  const mark = (id) => setMarked((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const setResult = (status) =>
+    start(async () => {
+      const ids = cases.filter((c) => marked.has(c.id)).map((c) => c.id);
+      const res = await fillCaseStatusAction(projectId, ids, status);
+      if (!res.ok) return toast.error(res.error);
+      toast.success(`Updated ${res.data?.affected ?? 0} of ${ids.length} test case(s)`);
+      setMarked(new Set());
+      router.refresh();
+    });
+
   return (
     <div className="space-y-4">
+      {canSetStatus && cases.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" aria-label="Select all cases" checked={allMarked} onChange={() => setMarked(allMarked ? new Set() : new Set(cases.map((c) => c.id)))} />
+            {marked.size ? `${marked.size} selected` : "Select all"}
+          </label>
+          {marked.size > 0 && (
+            <>
+              <NativeSelect aria-label="Set result" className="w-auto" value="" disabled={pending} onChange={(e) => e.target.value && setResult(e.target.value)}>
+                <option value="">Set result…</option>
+                {CASE_STATUSES.map((v) => <option key={v} value={v}>{CASE_STATUS_LABELS[v]}</option>)}
+              </NativeSelect>
+              <Button size="sm" variant="ghost" onClick={() => setMarked(new Set())}>Clear</Button>
+            </>
+          )}
+        </div>
+      )}
       {cases.length === 0 ? (
         <p className="text-sm text-muted-foreground">No test cases in this suite yet.</p>
       ) : (
         <ol className="divide-y rounded-lg border" data-testid="suite-cases">
           {cases.map((c, i) => (
             <li key={c.id} className="flex items-center gap-3 px-3 py-2 text-sm" data-testid="suite-case">
+              {canSetStatus && <input type="checkbox" aria-label={`Select ${c.code}`} checked={marked.has(c.id)} onChange={() => mark(c.id)} />}
               <span className="w-6 text-xs text-muted-foreground">{i + 1}</span>
               <Link href={`/test-cases/${c.id}`} className="font-mono text-xs hover:underline">{c.code}</Link>
               <span className="min-w-0 flex-1 truncate">{c.title}</span>
-              {c.archived && <Badge variant="outline">Archived</Badge>}
+              <div className="w-36 shrink-0 overflow-hidden rounded-md">
+                {canSetStatus
+                  ? <StatusSelect projectId={projectId} caseId={c.id} status={c.status} filled fillGroup="cases" ariaLabel={`Result for ${c.code}`} />
+                  : <StatusBadge status={c.status} label={CASE_STATUS_LABELS[c.status]} />}
+              </div>
               <Badge variant="secondary" className={PRIORITY_TONE[c.priority]}>{label(c.priority)}</Badge>
               {editable && (
                 <div className="flex gap-1">
@@ -80,7 +120,12 @@ export function SuiteCases({ projectId, suiteId, cases, editable }) {
         </ol>
       )}
 
-      {editable && !picking && <Button variant="outline" size="sm" onClick={() => setPicking(true)}><Plus /> Add test cases</Button>}
+      {editable && !picking && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setPicking(true)}><Plus /> Add test cases</Button>
+          {canCreate && <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/test-cases/new?suite=${suiteId}`} />}><FilePlus /> New test case</Button>}
+        </div>
+      )}
       {editable && picking && (
         <div className="space-y-3 rounded-lg border p-3">
           <Input aria-label="Search cases to add" placeholder="Search title or code…" value={q} onChange={(e) => setQ(e.target.value)} />

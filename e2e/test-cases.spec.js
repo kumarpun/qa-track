@@ -13,7 +13,7 @@ async function login(page, email) {
 
 const uniq = () => Math.random().toString(36).slice(2, 8);
 
-test("QA engineer creates a case, edits it (v2), and sees history + restore", async ({ page }) => {
+test("QA engineer creates a case, edits it in place, and sees the result history", async ({ page }) => {
   await login(page, "qa1@example.com");
   const title = `E2E case ${uniq()}`;
   await page.goto("/test-cases/new");
@@ -21,30 +21,16 @@ test("QA engineer creates a case, edits it (v2), and sees history + restore", as
   await page.getByLabel("Test steps", { exact: true }).fill("Do the thing");
   await page.getByLabel("Expected result").fill("Thing is done");
   await page.getByRole("button", { name: "Create test case" }).click();
-  await expect(page.getByRole("heading", { name: new RegExp(`TC-[A-Z0-9]+-\\d{4} · ${title}`) })).toBeVisible();
-  await expect(page.getByText(/^Version 1 ·/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const url = page.url();
 
   await page.goto(`${url}/edit`);
   await page.getByLabel("Title", { exact: true }).fill(`${title} (edited)`);
-  await page.getByLabel("Change note").fill("renamed");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(`${title} \\(edited\\)`) })).toBeVisible();
-  await expect(page.getByText(/^Version 2 ·/)).toBeVisible();
-
-  const history = page.getByTestId("version-list");
-  await expect(history.getByText("v1")).toBeVisible();
-  await expect(history.getByText("— renamed")).toBeVisible();
-
-  // Restore v1 → creates v3 with the original title; v1 and v2 stay intact.
-  await history.locator("li", { hasText: "v1" }).getByRole("button", { name: "Restore" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Restore" }).click();
-  await expect(page.getByRole("heading", { name: new RegExp(`· ${title}$`) })).toBeVisible();
-  await expect(page.getByText(/^Version 3 ·/)).toBeVisible();
-  await expect(history.locator("li")).toHaveCount(3);
 });
 
-test("list search filters by title and archived cases leave the default view", async ({ page }) => {
+test("list search filters by title; delete asks for confirmation and removes the case for good", async ({ page }) => {
   await login(page, "qa1@example.com");
   const title = `Findme ${uniq()}`;
   await page.goto("/test-cases/new");
@@ -61,9 +47,24 @@ test("list search filters by title and archived cases leave the default view", a
   await expect(page.getByRole("row")).toHaveCount(2); // header + 1 match
 
   await page.getByRole("link", { name: title }).click();
-  await page.getByRole("button", { name: "Archive" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Archive" }).click();
-  await expect(page.getByText("This test case is archived")).toBeVisible();
+  await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
+  const detailUrl = page.url();
+  await expect(page.getByRole("button", { name: "Archive" })).toHaveCount(0);
+
+  // Cancel keeps the case.
+  await page.getByRole("button", { name: "Delete test case" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText("cannot be undone");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
+
+  // Confirm deletes it from the database.
+  await page.getByRole("button", { name: "Delete test case" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page).toHaveURL(/\/test-cases$/);
+  await page.goto(detailUrl);
+  await expect(page.getByText("This page could not be found")).toBeVisible();
 
   await page.goto(`/test-cases?q=${encodeURIComponent(title)}`);
   await expect(page.getByText("No test cases match your filters")).toBeVisible();
@@ -91,7 +92,7 @@ test("a case from another project cannot be opened by someone who is not a membe
   await qa1.getByRole("menuitem", { name: /^WEB/ }).click();
   await expect(qa1.getByRole("button", { name: "Switch project" })).toContainText("WEB");
   await qa1.goto("/test-cases");
-  const href = await qa1.getByRole("link", { name: /^TC-WEB-0001$/ }).getAttribute("href");
+  const href = await qa1.locator("tbody tr").first().getByRole("link").first().getAttribute("href");
   expect(href).toMatch(/^\/test-cases\//);
 
   const qa2 = await (await browser.newContext()).newPage();
@@ -130,4 +131,157 @@ test("CSV import previews errors with line numbers, then imports valid files", a
   await expect(page.getByRole("row")).toHaveCount(2);
   await page.getByRole("link", { name: title }).click();
   await expect(page.getByTestId("step")).toHaveCount(2);
+});
+
+test("bulk delete confirms first; a case that is part of a run cannot be deleted", async ({ page }) => {
+  test.setTimeout(120_000);
+  await login(page, "lead@example.com");
+  const id = uniq();
+  const mk = async (name) => {
+    await page.goto("/test-cases/new");
+    await page.getByLabel("Title", { exact: true }).fill(name);
+    await page.getByLabel("Test steps", { exact: true }).fill("a");
+    await page.getByLabel("Expected result").fill("b");
+    await page.getByRole("button", { name: "Create test case" }).click();
+    await expect(page.getByRole("heading", { name: new RegExp(name) })).toBeVisible();
+    return page.url();
+  };
+  const inRun = `Inrun ${id}`;
+  const inRunUrl = await mk(inRun);
+  await mk(`Bulk ${id} one`);
+  await mk(`Bulk ${id} two`);
+
+  await page.goto("/test-runs/new");
+  await page.getByLabel("Name", { exact: true }).fill(`Del run ${id}`);
+  await page.getByLabel("Filter test cases").fill(id);
+  await page.getByLabel(new RegExp(inRun)).check();
+  await page.getByRole("button", { name: "Create run" }).click();
+  await expect(page.getByRole("heading", { name: new RegExp(`Del run ${id}`) })).toBeVisible();
+
+  // Single delete of a case used in a run is refused and the case stays.
+  await page.goto(inRunUrl);
+  await page.getByRole("button", { name: "Delete test case" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText(/Cannot delete: used in test runs/).first()).toBeVisible();
+  await page.goto(inRunUrl);
+  await expect(page.getByRole("heading", { name: new RegExp(inRun) })).toBeVisible();
+
+  // Bulk delete the two unused cases.
+  await page.goto(`/test-cases?q=${encodeURIComponent(`Bulk ${id}`)}`);
+  await page.getByLabel("Select all on page").check();
+  await page.getByRole("button", { name: "Delete selected" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Delete 2 test case(s) permanently?");
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("No test cases match your filters")).toBeVisible();
+});
+
+test("list works as a checklist: result is changed from the table and persists", async ({ page }) => {
+  await login(page, "qa1@example.com");
+  const title = `Check ${uniq()}`;
+  await page.goto("/test-cases/new");
+  await page.getByLabel("Title", { exact: true }).fill(title);
+  await page.getByLabel("Test steps", { exact: true }).fill("a");
+  await page.getByLabel("Expected result").fill("b");
+  await page.getByRole("button", { name: "Create test case" }).click();
+  await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
+
+  await page.goto(`/test-cases?q=${encodeURIComponent(title)}`);
+  const result = page.getByRole("combobox", { name: /^Result for/ });
+  await expect(result).toHaveValue("NOT_EXECUTED");
+  await page.waitForLoadState("networkidle");
+  const saved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/test-cases"));
+  await result.selectOption("PASSED");
+  await saved;
+  await expect(result).toHaveValue("PASSED");
+  await expect(result).toBeEnabled();
+
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: /^Result for/ })).toHaveValue("PASSED");
+});
+
+test("viewer sees results in the list but cannot change them", async ({ page }) => {
+  await login(page, "viewer@example.com");
+  await page.goto("/test-cases");
+  await expect(page.getByRole("columnheader", { name: "Results" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /^Result for/ })).toHaveCount(0);
+});
+
+test("dragging the fill handle copies a result down the column", async ({ page }) => {
+  test.setTimeout(120_000);
+  await login(page, "qa1@example.com");
+  const id = uniq();
+  for (const n of ["a", "b", "c"]) {
+    await page.goto("/test-cases/new");
+    await page.getByLabel("Title", { exact: true }).fill(`Fill ${id} ${n}`);
+    await page.getByLabel("Test steps", { exact: true }).fill("x");
+    await page.getByLabel("Expected result").fill("y");
+    await page.getByRole("button", { name: "Create test case" }).click();
+    await expect(page.getByRole("heading", { name: new RegExp(`Fill ${id}`) })).toBeVisible();
+  }
+  await page.goto(`/test-cases?q=${id}&sort=title&dir=asc`);
+  await page.waitForLoadState("networkidle");
+  const results = page.getByRole("combobox", { name: /^Result for/ });
+  await expect(results).toHaveCount(3);
+  const saved = page.waitForResponse((r) => r.request().method() === "POST");
+  await results.first().selectOption("PASSED");
+  await saved;
+  await expect(results.first()).toBeEnabled();
+
+  const cell = (i) => page.locator("[data-fill-group=cases]").nth(i);
+  const from = await cell(0).boundingBox();
+  const to = await cell(2).boundingBox();
+  await cell(0).hover();
+  await page.mouse.move(from.x + from.width - 4, from.y + from.height - 4);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 20, to.y + to.height / 2, { steps: 8 });
+  const filled = page.waitForResponse((r) => r.request().method() === "POST");
+  await page.mouse.up();
+  await filled;
+  await expect(results.nth(1)).toHaveValue("PASSED");
+  await expect(results.nth(2)).toHaveValue("PASSED");
+});
+
+test("Run in browser executes keyword steps against a real page, sets status and logs the run", async ({ page }) => {
+  test.setTimeout(120_000);
+  await login(page, "qa1@example.com");
+  const base = new URL(page.url()).origin;
+  const create = async (title, steps, expected) => {
+    await page.goto("/test-cases/new");
+    await page.getByLabel("Title", { exact: true }).fill(title);
+    await page.getByLabel("Test steps", { exact: true }).fill(steps);
+    await page.getByLabel("Expected result").fill(expected);
+    await page.getByRole("button", { name: "Create test case" }).click();
+    await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
+  };
+
+  // Passing case: points at this app's own login page.
+  const pass = `Browser pass ${uniq()}`;
+  await create(pass, `1. Visit: ${base}/login\n2. Text should present: Sign in\n3. Click Sign in`, `Should naviagte to url: ${base}/login`);
+  await page.getByRole("button", { name: "Run in browser" }).click();
+  await expect(page.getByTestId("auto-run")).toHaveCount(1, { timeout: 60_000 });
+  await expect(page.getByTestId("auto-run").first()).toContainText("Pass");
+  await page.getByRole("button", { name: /Result history/ }).click(); // collapsed by default
+  await expect(page.getByTestId("result-history")).toContainText("Browser run");
+
+  // Failing case: text that is not on the page → Failed with a screenshot.
+  const fail = `Browser fail ${uniq()}`;
+  await create(fail, `Visit ${base}/login\nText should present: this text does not exist anywhere`, "Should see Sign in");
+  await page.getByRole("button", { name: "Run in browser" }).click();
+  await expect(page.getByTestId("auto-run")).toHaveCount(1, { timeout: 60_000 });
+  await expect(page.getByTestId("auto-run").first()).toContainText("Fail");
+  await expect(page.getByAltText("Screenshot at the failed step")).toBeVisible();
+
+  // Unsupported wording is refused before any browser opens, and the status is untouched.
+  const bad = `Browser bad ${uniq()}`;
+  await create(bad, "Do the thing", "Thing is done");
+  await page.getByRole("button", { name: "Run in browser" }).click();
+  await expect(page.getByText(/Cannot run in a browser/).first()).toBeVisible();
+  await expect(page.getByTestId("auto-run")).toHaveCount(0);
+
+  // Viewers never get the button.
+  await page.context().clearCookies();
+  await login(page, "viewer@example.com");
+  await page.goto(`/test-cases?q=${encodeURIComponent(pass)}`);
+  await page.getByRole("link", { name: pass }).click();
+  await expect(page.getByRole("button", { name: "Run in browser" })).toHaveCount(0);
 });

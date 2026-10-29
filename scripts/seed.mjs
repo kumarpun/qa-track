@@ -102,10 +102,6 @@ for (const [key, list] of Object.entries(demoCases)) {
         "INSERT INTO test_case_steps (id, test_case_id, position, action, test_data, expected) VALUES (?,?,?,?,?,?)",
         [randomUUID(), id, i + 1, s.action, s.testData || null, s.expected],
       );
-    await conn.query(
-      "INSERT INTO test_case_versions (id, test_case_id, version, snapshot, change_note, created_by) VALUES (?,?,?,?,?,?)",
-      [randomUUID(), id, 1, JSON.stringify(content), "Seeded", author.id],
-    );
   }
   await conn.query("UPDATE projects SET tc_seq = ? WHERE id = ?", [seq, p.id]);
 }

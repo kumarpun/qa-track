@@ -3,7 +3,6 @@ import { z } from "zod";
 import { projectCtxById } from "@/lib/server/page";
 import { getCase, getCaseProjectId } from "@/lib/server/services/testcases";
 import { listMembers } from "@/lib/server/services/projects";
-import { PageHeader } from "@/components/page-header";
 import { CaseForm } from "../../case-form";
 
 export default async function EditTestCasePage({ params }) {
@@ -13,10 +12,9 @@ export default async function EditTestCasePage({ params }) {
   if (!projectId) notFound();
   const ctx = await projectCtxById(projectId, "testcase.write");
   const [tc, members] = await Promise.all([getCase(ctx, id).catch(() => null), listMembers(projectId)]);
-  if (!tc || tc.archivedAt) notFound();
+  if (!tc) notFound();
   return (
     <>
-      <PageHeader title={`Edit ${tc.code}`} description={`Currently version ${tc.currentVersion}. Saving changes creates version ${tc.currentVersion + 1}.`} />
       <CaseForm
         projectId={projectId}
         caseId={id}

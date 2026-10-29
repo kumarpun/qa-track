@@ -39,7 +39,7 @@ export function Filters({ params, members }) {
     </NativeSelect>
   );
   const opts = (list) => list.map((v) => ({ value: v, label: label(v) }));
-  const active = params.q || params.priority || params.type || params.automation || params.assignee || params.tag || params.status !== "active";
+  const active = params.q || params.priority || params.type || params.automation || params.assignee || params.tag;
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -49,11 +49,6 @@ export function Filters({ params, members }) {
       {sel("automation", opts(AUTOMATION), "Any automation")}
       {sel("assignee", members.map((m) => ({ value: m.id, label: m.name })), "Any assignee")}
       <Input aria-label="Filter by tag" placeholder="Tag" className="w-28" value={tag} onChange={(e) => setTag(e.target.value)} />
-      <NativeSelect aria-label="Status" className="w-auto min-w-28" value={params.status} onChange={(e) => set({ status: e.target.value === "active" ? "" : e.target.value })}>
-        <option value="active">Active</option>
-        <option value="archived">Archived</option>
-        <option value="all">All</option>
-      </NativeSelect>
       {active && (
         <Button variant="ghost" size="sm" onClick={() => { setQ(""); setTag(""); router.replace(pathname); }}><X /> Clear</Button>
       )}

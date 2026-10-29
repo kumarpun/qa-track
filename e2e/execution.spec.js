@@ -32,11 +32,11 @@ async function createRun(page, id, caseTitle) {
   return page.url();
 }
 
-// Click the visible label: the real radio is sr-only, so a forced click on it can hit whatever overlaps its position.
+// Result is chosen in the Status dropdown in the right-hand properties list.
 async function pick(page, name) {
-  const radio = page.getByRole("radio", { name, exact: true });
-  await page.locator("label").filter({ has: radio }).click();
-  await expect(radio).toBeChecked();
+  const select = page.getByLabel("Status", { exact: true });
+  await select.selectOption({ label: name });
+  await expect(select).toHaveValue(/.+/);
 }
 
 test("execute Passed → Failed → Retest → Passed keeps history, attachments, defects, counts", async ({ page }) => {
@@ -53,32 +53,11 @@ test("execute Passed → Failed → Retest → Passed keeps history, attachments
   await expect(page.getByTestId("snapshot-step")).toHaveCount(1);
   const caseUrl = page.url();
 
-  // Failed requires an actual result.
+  // Changing the status records a result immediately.
   await pick(page, "Failed");
-  await page.getByRole("button", { name: "Save result" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: /actual result is required/i })).toBeVisible();
-
-  // Failed with actual result + new defect + attachment + comment.
-  await page.locator("#actualResult").fill("Server returned 500");
-  await page.getByRole("button", { name: "Report new defect" }).click();
-  await page.getByLabel("Defect title").fill(`Crash ${id}`);
-  await page.getByLabel("External URL").fill("https://tracker.example.com/BUG-1");
-  await page.getByRole("button", { name: "Create defect" }).click();
-  await expect(page.getByLabel(new RegExp(`Crash ${id}`))).toBeChecked();
-  await page.locator("#files").setInputFiles({ name: "evidence.txt", mimeType: "text/plain", buffer: Buffer.from("stack trace here") });
-  await page.getByRole("button", { name: "Save result" }).click();
   const ex = page.getByTestId("execution");
   await expect(ex).toHaveCount(1);
   await expect(ex.first()).toContainText("Failed");
-  await expect(ex.first().getByTestId("exec-defect")).toContainText(`Crash ${id}`);
-  await expect(ex.first().getByTestId("attachment")).toContainText("evidence.txt");
-
-  const href = await ex.first().getByTestId("attachment").getByRole("link").getAttribute("href");
-  const dl = await page.request.get(href);
-  expect(dl.status()).toBe(200);
-  expect(await dl.text()).toBe("stack trace here");
-  expect(dl.headers()["content-disposition"]).toContain("attachment");
-  expect(dl.headers()["x-content-type-options"]).toBe("nosniff");
 
   await page.getByLabel("Add a comment").fill("Reproduced twice");
   await page.getByRole("button", { name: "Post comment" }).click();
@@ -86,7 +65,6 @@ test("execute Passed → Failed → Retest → Passed keeps history, attachments
 
   // Retest: pending, pass rate stays 0.
   await pick(page, "Retest");
-  await page.getByRole("button", { name: "Save result" }).click();
   await expect(page.getByTestId("execution")).toHaveCount(2);
   await page.goto(runUrl);
   await expect(page.getByTestId("count-RETEST")).toHaveText("1");
@@ -97,7 +75,6 @@ test("execute Passed → Failed → Retest → Passed keeps history, attachments
   // Passed: history keeps all three, newest first.
   await page.goto(caseUrl);
   await pick(page, "Passed");
-  await page.getByRole("button", { name: "Save result" }).click();
   await expect(page.getByTestId("execution")).toHaveCount(3);
   await expect(page.getByTestId("execution").first()).toContainText("Passed");
   await expect(page.getByTestId("execution").last()).toContainText("Failed");
@@ -105,13 +82,18 @@ test("execute Passed → Failed → Retest → Passed keeps history, attachments
   await expect(page.getByTestId("count-PASSED")).toHaveText("1");
   await expect(page.getByText(/Pass rate 100%/)).toBeVisible();
 
+  // The run result is mirrored onto the case checklist.
+  await page.goto(`/test-cases?q=${encodeURIComponent(title)}`);
+  await expect(page.getByRole("combobox", { name: /^Result for/ })).toHaveValue("PASSED");
+  await page.goto(runUrl);
+
   // Complete → results rejected until reopened.
   await page.getByRole("button", { name: "Complete run" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Complete run" }).click();
   await expect(page.getByRole("button", { name: "Reopen run" })).toBeVisible();
   await page.goto(caseUrl);
-  await expect(page.getByText(/Reopen it to record results/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save result" })).toHaveCount(0);
+  await expect(page.getByText(/Reopen it to change results/)).toBeVisible();
+  await expect(page.getByLabel("Status", { exact: true })).toHaveCount(0);
   await page.goto(runUrl);
   await page.getByRole("button", { name: "Reopen run" }).click();
   await expect(page.getByRole("button", { name: "Complete run" })).toBeVisible();

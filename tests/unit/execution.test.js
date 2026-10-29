@@ -3,15 +3,8 @@ import { executionSchema, quickDefectSchema } from "@/lib/validation/execution";
 import { computeProgress } from "@/lib/metrics";
 
 describe("executionSchema", () => {
-  it("requires an actual result when a test fails", () => {
-    const r = executionSchema.safeParse({ status: "FAILED", actualResult: "  " });
-    expect(r.success).toBe(false);
-    expect(r.error.issues[0].path).toEqual(["actualResult"]);
-    expect(executionSchema.safeParse({ status: "FAILED", actualResult: "500 error" }).success).toBe(true);
-  });
-
-  it("accepts Retest, Blocked and Skipped without an actual result", () => {
-    for (const status of ["RETEST", "BLOCKED", "SKIPPED", "PASSED"]) expect(executionSchema.safeParse({ status }).success).toBe(true);
+  it("accepts Retest, Blocked and Skipped without an actual result (status is set from the dropdown)", () => {
+    for (const status of ["RETEST", "BLOCKED", "SKIPPED", "PASSED", "FAILED"]) expect(executionSchema.safeParse({ status }).success).toBe(true);
   });
 
   it("rejects NOT_RUN as a saved result", () => {

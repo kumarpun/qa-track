@@ -1,17 +1,22 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { activeProjectCtx } from "@/lib/server/page";
 import { listMembers } from "@/lib/server/services/projects";
-import { PageHeader } from "@/components/page-header";
+import { getSuite } from "@/lib/server/services/suites";
 import { CaseForm } from "../case-form";
 
-export default async function NewTestCasePage() {
+export default async function NewTestCasePage({ searchParams }) {
   const ctx = await activeProjectCtx("testcase.write");
   if (!ctx) notFound();
+  // ?suite=<id>: the new case is added to that suite on save (ignored if it is not an active suite of this project).
+  const { suite: suiteParam } = await searchParams;
+  let suite = null;
+  if (z.string().uuid().safeParse(suiteParam).success) {
+    const s = await getSuite(ctx, suiteParam).catch(() => null);
+    if (s && !s.archived_at) suite = { id: s.id, name: s.name };
+  }
   const members = await listMembers(ctx.project.id);
   return (
-    <>
-      <PageHeader title="New test case" description={`Project ${ctx.project.key}`} />
-      <CaseForm projectId={ctx.project.id} members={members.filter((m) => m.active).map((m) => ({ id: m.user_id, name: m.name }))} />
-    </>
+    <CaseForm projectId={ctx.project.id} suite={suite} members={members.filter((m) => m.active).map((m) => ({ id: m.user_id, name: m.name }))} />
   );
 }

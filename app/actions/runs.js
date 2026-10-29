@@ -7,6 +7,7 @@ import { runSchema } from "@/lib/validation/run";
 import { runStatusSchema } from "@/lib/validation/execution";
 import * as svc from "@/lib/server/services/runs";
 import * as runSvc from "@/lib/server/services/executions";
+import { removeStoredFiles } from "@/lib/server/services/attachments";
 
 export async function createRunAction(projectId, input) {
   return run(runSchema, input, async (data) => {
@@ -22,5 +23,17 @@ export async function setRunStatusAction(projectId, runId, status) {
     const ctx = await requireProject(z.string().uuid().parse(projectId), "run.manage");
     await runSvc.setRunStatus(ctx, d.runId, d.status);
     revalidatePath("/test-runs", "layout");
+  });
+}
+
+export async function deleteRunAction(projectId, runId) {
+  return run(z.object({ runId: z.string().uuid() }), { runId }, async (d) => {
+    const ctx = await requireProject(z.string().uuid().parse(projectId), "run.manage");
+    const { storageKeys } = await svc.deleteRun(ctx, d.runId);
+    await removeStoredFiles(storageKeys);
+    revalidatePath("/test-runs", "layout");
+    revalidatePath("/");
+    revalidatePath("/reports");
+    revalidatePath("/execution");
   });
 }

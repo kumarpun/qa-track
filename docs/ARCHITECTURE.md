@@ -12,24 +12,24 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - `db/migrations/*.sql` + `scripts/migrate.mjs` – hand-written migrations, tracked in `_migrations`.
 
 ## Data integrity decisions
-- Test case **versions** are immutable snapshots; every edit creates a new version.
-- A **test run snapshots** case version + steps (`test_run_cases.snapshot`) at creation, so later edits never rewrite history.
+- Test cases are edited **in place**: an edit overwrites the case and its steps. There is no version history.
+- A **test run snapshots** case content + steps (`test_run_cases.snapshot`, JSON) at creation, so later edits never rewrite run history.
 - **Executions are append-only**; `test_run_cases.status` caches the latest.
-- Historical tables use `ON DELETE RESTRICT`; "delete" is archive (`archived_at`).
+- Historical tables use `ON DELETE RESTRICT`. Test cases are deleted permanently (see below); suites are archived (`archived_at`).
 - Codes (`TC-APP-0001`, `RUN-APP-0001`, `DEF-APP-0001`) come from per-project counters incremented inside the creating transaction (not AUTO_INCREMENT, which TiDB batches and leaves gaps in).
 - **Retest** is *pending*: it is neither completed nor passed (see `lib/metrics.js`).
 - Non-members get 404, not 403, so project IDs cannot be probed.
 
 ## Test case module (Phase 2)
-- Layers: `app/(app)/test-cases/*` (server pages + client forms) → `app/actions/testcases.js` (Zod + `run()` result wrapper) → `lib/server/services/testcases.js` (transactions, versioning, audit) → `lib/server/db.js`.
+- Layers: `app/(app)/test-cases/*` (server pages + client forms) → `app/actions/testcases.js` (Zod + `run()` result wrapper) → `lib/server/services/testcases.js` (transactions, audit) → `lib/server/db.js`.
 - `lib/csv.js` is a dependency-free RFC 4180 parser/writer; `lib/testcase-csv.js` maps rows to cases (one row per step, all-or-nothing, line-numbered errors).
-- Content edits (title, steps, priority…) write a new `test_case_versions` row; restore copies an old snapshot into a new version.
+- Content edits (title, steps, priority…) update `test_cases` and replace its `test_case_steps` rows; nothing else is written. The case page shows pass/fail result history.
 
 ## Suites and runs (Phase 3)
 - `lib/server/services/suites.js` (tree, membership, ordering, archive, duplicate) and `runs.js` (creation, list, detail); actions in `app/actions/suites.js` and `runs.js`.
 - Suites nest via `parent_id`; cycles, cross-project parents and archived parents are rejected. Reordering must send the exact current member set, otherwise 409 (guards against concurrent edits).
-- `createRun` is one transaction: it locks the latest `test_case_versions` rows (`FOR UPDATE`; TiDB does not support `LOCK IN SHARE MODE`), assigns the next `run_seq` code, and stores `test_run_cases.test_case_version_id` plus a JSON `snapshot` of the content. Runs never read live case content, so edits cannot rewrite history.
-- Cases referenced by suites or runs are never hard-deleted (FK `RESTRICT`); they are archived. Archived cases and suites are skipped when building new runs, and a run needs at least one case.
+- `createRun` is one transaction: it locks the selected `test_cases` rows (`FOR UPDATE`; TiDB does not support `LOCK IN SHARE MODE`), assigns the next `run_seq` code, and stores a JSON `snapshot` of each case's content and steps in `test_run_cases`. Runs never read live case content, so edits cannot rewrite history.
+- Test cases are hard-deleted (single and bulk, behind a confirm dialog) together with their suite membership; steps cascade. A case that is part of any run is refused with a 409 so run results are never destroyed. Archived suites are skipped when building new runs, and a run needs at least one case. `test_cases.archived_at` is no longer used.
 
 ## Execution (Phase 4)
 - `services/executions.js` (`recordExecution`, comments, run status transitions), `defects.js` (quick-create and linking), `attachments.js` (disk storage, allowlist, size limits); actions in `app/actions/executions.js`, files via `app/api/attachments`.
@@ -52,7 +52,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Setup, schema, auth, layout, projects, users, dashboard shell | done |
-| 2 | Test cases, steps, versions, CSV import/export, bulk actions | done |
+| 2 | Test cases, steps, CSV import/export, bulk actions | done |
 | 3 | Suites, run creation with snapshots | done |
 | 4 | Execution UI, attachments, comments, history | done |
 | 5 | Defects, reports, CSV/print | done |

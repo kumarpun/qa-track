@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RunFilters } from "./run-filters";
+import { DeleteRunButton } from "./delete-run-button";
 
 export default async function TestRunsPage({ searchParams }) {
   const ctx = await activeProjectCtx();
@@ -54,6 +55,7 @@ export default async function TestRunsPage({ searchParams }) {
                   <TableHead>Build</TableHead>
                   <TableHead className="text-right">Cases</TableHead>
                   <TableHead className="text-right">Pass rate</TableHead>
+                  {canManage && <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -69,6 +71,7 @@ export default async function TestRunsPage({ searchParams }) {
                       <TableCell>{r.build_version || "—"}</TableCell>
                       <TableCell className="text-right">{r.total}</TableCell>
                       <TableCell className="text-right">{r.total ? `${pr.passRate}%` : "—"}</TableCell>
+                      {canManage && <TableCell className="text-right"><DeleteRunButton projectId={ctx.project.id} runId={r.id} code={r.code} /></TableCell>}
                     </TableRow>
                   );
                 })}

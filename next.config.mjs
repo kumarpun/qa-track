@@ -5,6 +5,8 @@ const nextConfig = {
   // Every page is per-user and reads the session cookie, so the app is fully dynamic;
   // Cache Components would force a Suspense boundary around every authenticated page.
   poweredByHeader: false,
+  // Browser runs drive a real Chromium through Playwright; it must load from node_modules, not be bundled.
+  serverExternalPackages: ["@playwright/test", "playwright", "playwright-core"],
   async headers() {
     return [{
       source: "/(.*)",

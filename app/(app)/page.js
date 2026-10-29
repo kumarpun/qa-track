@@ -51,23 +51,23 @@ export default async function DashboardPage() {
   ];
   return (
     <>
-      <PageHeader title="Dashboard" description={`${project.key} · ${project.name}`} />
+      <PageHeader title="Dashboard" description={<>{project.key} · {project.name}{d.latestRun && <> · Latest run: <b className="text-black dark:text-white"><i>{d.latestRun.code}</i></b> · {d.latestRun.name}</>}</>} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat href="/test-cases" label="Test cases" value={d.totalCases} icon={FileCheck2} />
+        <Stat href="/test-cases" label="Test cases" value={d.latestRun ? `${p.total} / ${d.totalCases}` : d.totalCases} sub={d.latestRun ? `in ${d.latestRun.code} / in project` : undefined} icon={FileCheck2} />
         <Stat href="/test-suites" label="Test suites" value={d.totalSuites} icon={Layers} />
         <Stat href="/test-runs" label="Test runs" value={d.totalRuns} sub={`${d.runCounts.IN_PROGRESS ?? 0} in progress`} icon={PlayCircle} />
         <Stat href="/defects" label="Open defects" value={d.openDefects} sub={`${Object.values(d.defects).reduce((a, b) => a + b, 0)} total`} icon={Bug} />
-        <Stat href="/test-runs" label="Executed" value={`${p.completed} / ${p.total}`} sub={`${p.progressPct}% complete`} icon={CheckCircle2} />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Executed" value={`${p.completed} / ${p.total}`} sub={d.latestRun ? `${p.progressPct}% of ${d.latestRun.code}` : "No runs yet"} icon={CheckCircle2} />
         <Stat href="/reports" label="Pass rate" value={`${p.passRate}%`} sub={`${p.executedPassRate}% of executed`} icon={Percent} />
-        <Stat href="/test-runs" label="Failed" value={p.FAILED} icon={Bug} />
-        <Stat href="/test-runs" label="Blocked / Retest" value={`${p.BLOCKED} / ${p.RETEST}`} icon={PlayCircle} />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Failed" value={p.FAILED} icon={Bug} />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Blocked / Retest" value={`${p.BLOCKED} / ${p.RETEST}`} icon={PlayCircle} />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Execution status</CardTitle></CardHeader>
           <CardContent>
-            {p.total ? <StatusChart data={chartData} /> : <p className="py-10 text-center text-sm text-muted-foreground">No executions yet. Create a test run to begin.</p>}
+            {p.total ? <StatusChart data={chartData} /> : <p className="py-10 text-center text-sm text-muted-foreground">No test cases yet.</p>}
           </CardContent>
         </Card>
         <Card>
