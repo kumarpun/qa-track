@@ -65,9 +65,9 @@ export default async function RunCasePage({ params }) {
               <ol className="space-y-2">
                 {steps.map((st) => (
                   <li key={st.position} className="rounded-md border p-2" data-testid="snapshot-step">
-                    <div><span className="text-muted-foreground">{st.position}.</span> {st.action}</div>
-                    {st.testData && <div className="text-xs text-muted-foreground">Data: {st.testData}</div>}
-                    <div className="text-xs">Expected: {st.expected}</div>
+                    <div className="whitespace-pre-wrap"><span className="text-muted-foreground">{st.position}.</span> {st.action}</div>
+                    {st.testData && <div className="whitespace-pre-wrap text-xs text-muted-foreground">Data: {st.testData}</div>}
+                    <div className="whitespace-pre-wrap text-xs">Expected: {st.expected}</div>
                   </li>
                 ))}
                 {steps.length === 0 && <li className="text-muted-foreground">No steps.</li>}

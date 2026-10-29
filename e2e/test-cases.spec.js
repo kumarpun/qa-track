@@ -18,8 +18,8 @@ test("QA engineer creates a case, edits it (v2), and sees history + restore", as
   const title = `E2E case ${uniq()}`;
   await page.goto("/test-cases/new");
   await page.getByLabel("Title", { exact: true }).fill(title);
-  await page.getByLabel("Action").first().fill("Do the thing");
-  await page.getByLabel("Expected result").first().fill("Thing is done");
+  await page.getByLabel("Test steps", { exact: true }).fill("Do the thing");
+  await page.getByLabel("Expected result").fill("Thing is done");
   await page.getByRole("button", { name: "Create test case" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(`TC-[A-Z0-9]+-\\d{4} · ${title}`) })).toBeVisible();
   await expect(page.getByText(/^Version 1 ·/)).toBeVisible();
@@ -49,8 +49,8 @@ test("list search filters by title and archived cases leave the default view", a
   const title = `Findme ${uniq()}`;
   await page.goto("/test-cases/new");
   await page.getByLabel("Title", { exact: true }).fill(title);
-  await page.getByLabel("Action").first().fill("a");
-  await page.getByLabel("Expected result").first().fill("b");
+  await page.getByLabel("Test steps", { exact: true }).fill("a");
+  await page.getByLabel("Expected result").fill("b");
   await page.getByRole("button", { name: "Create test case" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
 

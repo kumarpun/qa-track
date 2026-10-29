@@ -81,8 +81,8 @@ test("one defect links to many executions; linked defect cannot be deleted; repo
   for (const n of [1, 2]) {
     await lead.goto("/test-cases/new");
     await lead.getByLabel("Title", { exact: true }).fill(`Defect case ${id} ${n}`);
-    await lead.getByLabel("Action").first().fill("Do");
-    await lead.getByLabel("Expected result").first().fill("Done");
+    await lead.getByLabel("Test steps", { exact: true }).fill("Do");
+    await lead.getByLabel("Expected result").fill("Done");
     await lead.getByRole("button", { name: "Create test case" }).click();
     await expect(lead.getByRole("heading", { name: new RegExp(`Defect case ${id} ${n}`) })).toBeVisible();
   }

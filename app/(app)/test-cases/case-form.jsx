@@ -1,8 +1,7 @@
 "use client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useFieldArray, useForm } from "react-hook-form";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PRIORITIES, TYPES, AUTOMATION } from "@/lib/validation/testcase";
 import { createCaseAction, updateCaseAction } from "@/app/actions/testcases";
@@ -14,14 +13,22 @@ import { Field } from "@/components/form-field";
 import { NativeSelect } from "@/components/native-select";
 import { label } from "./labels";
 
-const EMPTY_STEP = { action: "", testData: "", expected: "" };
+/**
+ * The form edits one combined step: each box holds one line per point (like a spreadsheet cell).
+ * A case that already has several steps (e.g. from CSV import) is shown merged as numbered lines.
+ */
+const mergeSteps = (steps, key) => {
+  if (!steps?.length) return "";
+  if (steps.length === 1) return steps[0][key] ?? "";
+  return steps.map((s, i) => (s[key] ? `${i + 1}. ${s[key]}` : "")).filter(Boolean).join("\n");
+};
 
 /** Tags are entered comma-separated and URLs one per line; both are normalised on submit and validated again by Zod on the server. */
 export function CaseForm({ projectId, members, initial, caseId }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const editing = Boolean(caseId);
-  const { register, control, handleSubmit, setError, formState: { errors } } = useForm({
+  const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: {
       title: initial?.title ?? "",
       description: initial?.description ?? "",
@@ -36,23 +43,25 @@ export function CaseForm({ projectId, members, initial, caseId }) {
       defectUrlsText: (initial?.defectUrls ?? []).join("\n"),
       assigneeId: initial?.assigneeId ?? "",
       changeNote: "",
-      steps: initial?.steps?.length ? initial.steps : [{ ...EMPTY_STEP }],
+      stepAction: mergeSteps(initial?.steps, "action"),
+      stepData: mergeSteps(initial?.steps, "testData"),
+      stepExpected: mergeSteps(initial?.steps, "expected"),
     },
   });
-  const { fields, append, remove, move } = useFieldArray({ control, name: "steps" });
-
-  const onSubmit = ({ tagsText, defectUrlsText, assigneeId, ...v }) =>
+  const onSubmit = ({ tagsText, defectUrlsText, assigneeId, stepAction, stepData, stepExpected, ...v }) =>
     start(async () => {
       const input = {
         ...v,
         assigneeId: assigneeId || null,
+        steps: [{ action: stepAction, testData: stepData, expected: stepExpected }],
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         defectUrls: defectUrlsText.split("\n").map((t) => t.trim()).filter(Boolean),
       };
       const res = editing ? await updateCaseAction(projectId, caseId, input) : await createCaseAction(projectId, input);
       if (!res.ok) {
         for (const [k, m] of Object.entries(res.fieldErrors ?? {})) {
-          const key = k === "tags" ? "tagsText" : k === "defectUrls" ? "defectUrlsText" : k;
+          const step = k.match(/^steps\.0\.(action|testData|expected)$/)?.[1];
+          const key = step ? { action: "stepAction", testData: "stepData", expected: "stepExpected" }[step] : k === "tags" ? "tagsText" : k === "defectUrls" ? "defectUrlsText" : k;
           setError(key, { message: m });
         }
         return toast.error(res.error);
@@ -78,6 +87,29 @@ export function CaseForm({ projectId, members, initial, caseId }) {
           <Field label="Title" htmlFor="title" error={errors.title?.message}>
             <Input id="title" {...register("title", { required: "Title is required" })} />
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Test steps</CardTitle></CardHeader>
+        <CardContent>
+          {typeof errors.steps?.message === "string" && <p role="alert" className="mb-3 text-xs text-destructive">{errors.steps.message}</p>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Test steps" htmlFor="stepAction" error={errors.stepAction?.message} hint="One point per line, e.g. 1. Open the page">
+              <Textarea id="stepAction" rows={6} {...register("stepAction", { required: "Test steps are required" })} />
+            </Field>
+            <Field label="Step test data" htmlFor="stepData" error={errors.stepData?.message}>
+              <Textarea id="stepData" rows={6} {...register("stepData")} />
+            </Field>
+            <Field label="Expected result" htmlFor="stepExpected" error={errors.stepExpected?.message}>
+              <Textarea id="stepExpected" rows={6} {...register("stepExpected", { required: "Expected result is required" })} />
+            </Field>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-4 pt-6">
           <Field label="Description" htmlFor="description" error={errors.description?.message}>
             <Textarea id="description" rows={3} {...register("description")} />
           </Field>
@@ -114,37 +146,6 @@ export function CaseForm({ projectId, members, initial, caseId }) {
           <Field label="Test data" htmlFor="testData" error={errors.testData?.message}>
             <Textarea id="testData" rows={2} {...register("testData")} />
           </Field>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Steps</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {typeof errors.steps?.message === "string" && <p role="alert" className="text-xs text-destructive">{errors.steps.message}</p>}
-          {fields.map((f, i) => (
-            <div key={f.id} className="rounded-lg border p-3" data-testid="step-row">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium">Step {i + 1}</span>
-                <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Move step ${i + 1} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><ArrowUp /></Button>
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Move step ${i + 1} down`} disabled={i === fields.length - 1} onClick={() => move(i, i + 1)}><ArrowDown /></Button>
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove step ${i + 1}`} disabled={fields.length === 1} onClick={() => remove(i)}><Trash2 /></Button>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Action" htmlFor={`steps.${i}.action`} error={errors.steps?.[i]?.action?.message}>
-                  <Textarea id={`steps.${i}.action`} rows={2} {...register(`steps.${i}.action`, { required: "Action is required" })} />
-                </Field>
-                <Field label="Test data" htmlFor={`steps.${i}.testData`}>
-                  <Textarea id={`steps.${i}.testData`} rows={2} {...register(`steps.${i}.testData`)} />
-                </Field>
-                <Field label="Expected result" htmlFor={`steps.${i}.expected`} error={errors.steps?.[i]?.expected?.message}>
-                  <Textarea id={`steps.${i}.expected`} rows={2} {...register(`steps.${i}.expected`, { required: "Expected result is required" })} />
-                </Field>
-              </div>
-            </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => append({ ...EMPTY_STEP })}><Plus /> Add step</Button>
         </CardContent>
       </Card>
 

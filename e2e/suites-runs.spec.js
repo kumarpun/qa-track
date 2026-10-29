@@ -16,8 +16,8 @@ const uniq = () => Math.random().toString(36).slice(2, 8);
 async function createCase(page, title) {
   await page.goto("/test-cases/new");
   await page.getByLabel("Title", { exact: true }).fill(title);
-  await page.getByLabel("Action").first().fill("Do the thing");
-  await page.getByLabel("Expected result").first().fill("Thing is done");
+  await page.getByLabel("Test steps", { exact: true }).fill("Do the thing");
+  await page.getByLabel("Expected result").fill("Thing is done");
   await page.getByRole("button", { name: "Create test case" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(title) })).toBeVisible();
   return page.url();
