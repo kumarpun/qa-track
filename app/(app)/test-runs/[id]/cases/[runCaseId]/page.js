@@ -59,7 +59,6 @@ export default async function RunCasePage({ params }) {
                 <Badge variant="secondary" className={PRIORITY_TONE[s.priority]}>{label(s.priority)}</Badge>
                 {s.type && <Badge variant="outline">{label(s.type)}</Badge>}
               </div>
-              {s.description && <p className="whitespace-pre-wrap">{s.description}</p>}
               {s.preconditions && <div><div className="font-medium">Preconditions</div><p className="whitespace-pre-wrap">{s.preconditions}</p></div>}
               {s.testData && <div><div className="font-medium">Test data</div><p className="whitespace-pre-wrap">{s.testData}</p></div>}
               <ol className="space-y-2">

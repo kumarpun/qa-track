@@ -58,10 +58,9 @@ export default async function TestCaseDetailPage({ params }) {
           <Card>
             <CardHeader><CardTitle>Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <Text>{tc.description}</Text>
               {tc.preconditions && <div><h4 className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Preconditions</h4><Text>{tc.preconditions}</Text></div>}
               {tc.testData && <div><h4 className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Test data</h4><Text>{tc.testData}</Text></div>}
-              {!tc.description && !tc.preconditions && !tc.testData && <p className="text-sm text-muted-foreground">No description.</p>}
+              {!tc.preconditions && !tc.testData && <p className="text-sm text-muted-foreground">No preconditions or test data.</p>}
             </CardContent>
           </Card>
 

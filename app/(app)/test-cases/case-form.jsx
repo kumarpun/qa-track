@@ -31,7 +31,6 @@ export function CaseForm({ projectId, members, initial, caseId }) {
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: {
       title: initial?.title ?? "",
-      description: initial?.description ?? "",
       preconditions: initial?.preconditions ?? "",
       testData: initial?.testData ?? "",
       priority: initial?.priority ?? "MEDIUM",
@@ -52,6 +51,8 @@ export function CaseForm({ projectId, members, initial, caseId }) {
     start(async () => {
       const input = {
         ...v,
+        // Description is no longer shown; keep any stored value so editing never wipes it.
+        description: initial?.description ?? "",
         assigneeId: assigneeId || null,
         steps: [{ action: stepAction, testData: stepData, expected: stepExpected }],
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
@@ -110,9 +111,6 @@ export function CaseForm({ projectId, members, initial, caseId }) {
 
       <Card>
         <CardContent className="space-y-4 pt-6">
-          <Field label="Description" htmlFor="description" error={errors.description?.message}>
-            <Textarea id="description" rows={3} {...register("description")} />
-          </Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Priority" htmlFor="priority">{select("priority", PRIORITIES)}</Field>
             <Field label="Type" htmlFor="type">{select("type", TYPES)}</Field>
