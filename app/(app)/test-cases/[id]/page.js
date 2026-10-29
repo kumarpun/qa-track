@@ -5,10 +5,8 @@ import { Pencil } from "lucide-react";
 import { projectCtxById } from "@/lib/server/page";
 import { getCase, getCaseProjectId, listVersions } from "@/lib/server/services/testcases";
 import { can } from "@/lib/permissions";
-import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { label, PRIORITY_TONE } from "../labels";
 import { CaseActions } from "./case-actions";
 import { VersionHistory } from "./version-history";
@@ -17,14 +15,26 @@ const fmt = (d) => new Date(d).toISOString().replace("T", " ").slice(0, 16) + " 
 
 function Meta({ name, children }) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{name}</dt>
-      <dd className="mt-0.5 text-sm">{children || <span className="text-muted-foreground">—</span>}</dd>
+    <div className="flex items-baseline gap-3">
+      <dt className="w-24 shrink-0 text-sm text-muted-foreground">{name}</dt>
+      <dd className="min-w-0 flex-1 text-sm">{children || <span className="text-muted-foreground">—</span>}</dd>
     </div>
   );
 }
 
-const Text = ({ children }) => (children ? <p className="whitespace-pre-wrap text-sm">{children}</p> : null);
+const Text = ({ children }) => (children ? <p className="whitespace-pre-wrap text-sm leading-relaxed">{children}</p> : null);
+
+function Section({ title, children }) {
+  return (
+    <section className="space-y-1.5">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** One block per step; several steps (e.g. CSV import) get a "n." prefix so the order stays clear. */
+const numbered = (steps, i, text) => (steps.length > 1 ? `${i + 1}. ${text}` : text);
 
 export default async function TestCaseDetailPage({ params }) {
   const { id } = await params;
@@ -37,83 +47,87 @@ export default async function TestCaseDetailPage({ params }) {
   const versions = await listVersions(ctx, id);
   const canWrite = can(ctx.role, "testcase.write");
 
+  const steps = tc.steps;
+  const withData = steps.map((s, i) => ({ i, text: s.testData })).filter((s) => s.text);
+
   return (
     <>
-      <PageHeader
-        title={`${tc.code} · ${tc.title}`}
-        description={`Version ${tc.currentVersion} · created by ${tc.authorName}`}
-        actions={
-          canWrite && (
-            <>
-              {!tc.archivedAt && <Link href={`/test-cases/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
-              <CaseActions projectId={projectId} caseId={id} archived={Boolean(tc.archivedAt)} />
-            </>
-          )
-        }
-      />
       {tc.archivedAt && <p className="mb-4 rounded-md border bg-muted px-3 py-2 text-sm">This test case is archived. Restore it to edit or add it to new runs.</p>}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {tc.preconditions && <div><h4 className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Preconditions</h4><Text>{tc.preconditions}</Text></div>}
-              {tc.testData && <div><h4 className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Test data</h4><Text>{tc.testData}</Text></div>}
-              {!tc.preconditions && !tc.testData && <p className="text-sm text-muted-foreground">No preconditions or test data.</p>}
-            </CardContent>
-          </Card>
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Version {tc.currentVersion} · created by {tc.authorName}</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight"><span className="text-muted-foreground">{tc.code} · </span>{tc.title}</h1>
+            </div>
+            {canWrite && (
+              <div className="flex items-center gap-2">
+                {!tc.archivedAt && <Link href={`/test-cases/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
+                <CaseActions projectId={projectId} caseId={id} archived={Boolean(tc.archivedAt)} />
+              </div>
+            )}
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle>Steps</CardTitle></CardHeader>
-            <CardContent>
-              <ol className="space-y-3">
-                {tc.steps.map((s, i) => (
-                  <li key={i} className="rounded-lg border p-3" data-testid="step">
-                    <div className="mb-1 text-xs font-medium text-muted-foreground">Step {i + 1}</div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div><div className="text-xs text-muted-foreground">Action</div><Text>{s.action}</Text></div>
-                      <div><div className="text-xs text-muted-foreground">Test data</div><Text>{s.testData || "—"}</Text></div>
-                      <div><div className="text-xs text-muted-foreground">Expected</div><Text>{s.expected}</Text></div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
+          {tc.preconditions && <Section title="Preconditions"><Text>{tc.preconditions}</Text></Section>}
+          <Section title="Test steps">
+            <div className="space-y-1.5">
+              {steps.map((s, i) => <div key={i} data-testid="step"><Text>{numbered(steps, i, s.action)}</Text></div>)}
+            </div>
+          </Section>
+          {withData.length > 0 && (
+            <Section title="Test data">
+              {withData.map((s) => <Text key={s.i}>{numbered(steps, s.i, s.text)}</Text>)}
+            </Section>
+          )}
+          <Section title="Expected result">
+            {steps.map((s, i) => <Text key={i}>{numbered(steps, i, s.expected)}</Text>)}
+          </Section>
+          {tc.testData && <Section title="Additional test data"><Text>{tc.testData}</Text></Section>}
 
-          <Card>
-            <CardHeader><CardTitle>Version history</CardTitle></CardHeader>
-            <CardContent>
-              <VersionHistory
-                projectId={projectId}
-                caseId={id}
-                current={tc.currentVersion}
-                canRestore={canWrite && !tc.archivedAt}
-                versions={versions.map((v) => ({ ...v, createdAt: fmt(v.createdAt) }))}
-              />
-            </CardContent>
-          </Card>
+          <Section title="Version history">
+            <VersionHistory
+              projectId={projectId}
+              caseId={id}
+              current={tc.currentVersion}
+              canRestore={canWrite && !tc.archivedAt}
+              versions={versions.map((v) => ({ ...v, createdAt: fmt(v.createdAt) }))}
+            />
+          </Section>
         </div>
 
-        <Card className="h-fit">
-          <CardContent className="pt-6">
-            <dl className="space-y-4">
+        <aside className="h-fit space-y-8">
+          <div className="space-y-3">
+            <h3 className="text-sm text-muted-foreground">Properties</h3>
+            <dl className="space-y-3">
               <Meta name="Priority"><Badge variant="secondary" className={PRIORITY_TONE[tc.priority]}>{label(tc.priority)}</Badge></Meta>
               <Meta name="Type">{label(tc.type)}</Meta>
               <Meta name="Automation">{label(tc.automation)}</Meta>
-              <Meta name="Component">{tc.component}</Meta>
               <Meta name="Assignee">{tc.assigneeName}</Meta>
-              <Meta name="Tags">{tc.tags.length ? <span className="flex flex-wrap gap-1">{tc.tags.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</span> : null}</Meta>
+              <Meta name="Component">{tc.component}</Meta>
+            </dl>
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-sm text-muted-foreground">Labels</h3>
+            {tc.tags.length ? <div className="flex flex-wrap gap-1">{tc.tags.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</div> : <p className="text-sm text-muted-foreground">None</p>}
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-sm text-muted-foreground">Links</h3>
+            <dl className="space-y-3">
               <Meta name="Requirement">{tc.requirementUrl && <a className="break-all text-primary underline" href={tc.requirementUrl} target="_blank" rel="noopener noreferrer">{tc.requirementUrl}</a>}</Meta>
-              <Meta name="Related defects">
+              <Meta name="Defects">
                 {tc.defectUrls.length ? tc.defectUrls.map((u) => <a key={u} className="block break-all text-primary underline" href={u} target="_blank" rel="noopener noreferrer">{u}</a>) : null}
               </Meta>
+            </dl>
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-sm text-muted-foreground">Activity</h3>
+            <dl className="space-y-3">
               <Meta name="Created">{fmt(tc.createdAt)}</Meta>
               <Meta name="Updated">{fmt(tc.updatedAt)}</Meta>
             </dl>
-          </CardContent>
-        </Card>
+          </div>
+        </aside>
       </div>
     </>
   );

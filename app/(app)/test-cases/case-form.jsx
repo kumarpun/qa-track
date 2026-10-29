@@ -8,10 +8,32 @@ import { createCaseAction, updateCaseAction } from "@/app/actions/testcases";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field } from "@/components/form-field";
+import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/native-select";
 import { label } from "./labels";
+
+function Section({ id, title, error, hint, children }) {
+  return (
+    <section className="space-y-1">
+      <Label htmlFor={id} className="px-2.5 text-sm font-semibold">{title}</Label>
+      {children}
+      {hint && !error && <p className="px-2.5 text-xs text-muted-foreground">{hint}</p>}
+      {error && <p role="alert" className="px-2.5 text-xs text-destructive">{error}</p>}
+    </section>
+  );
+}
+
+function Prop({ id, name, error, children }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <Label htmlFor={id} className="w-24 shrink-0 text-muted-foreground">{name}</Label>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+      {error && <p role="alert" className="ml-26 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 /**
  * The form edits one combined step: each box holds one line per point (like a spreadsheet cell).
@@ -32,7 +54,6 @@ export function CaseForm({ projectId, members, initial, caseId }) {
     defaultValues: {
       title: initial?.title ?? "",
       preconditions: initial?.preconditions ?? "",
-      testData: initial?.testData ?? "",
       priority: initial?.priority ?? "MEDIUM",
       type: initial?.type ?? "FUNCTIONAL",
       automation: initial?.automation ?? "MANUAL",
@@ -51,8 +72,9 @@ export function CaseForm({ projectId, members, initial, caseId }) {
     start(async () => {
       const input = {
         ...v,
-        // Description is no longer shown; keep any stored value so editing never wipes it.
+        // Description and case-level test data are no longer shown; keep stored values so editing never wipes them.
         description: initial?.description ?? "",
+        testData: initial?.testData ?? "",
         assigneeId: assigneeId || null,
         steps: [{ action: stepAction, testData: stepData, expected: stepExpected }],
         tags: tagsText.split(",").map((t) => t.trim()).filter(Boolean),
@@ -77,86 +99,82 @@ export function CaseForm({ projectId, members, initial, caseId }) {
       router.refresh();
     });
 
+
+  const quiet = "border-transparent bg-transparent px-2.5 hover:border-input dark:bg-transparent";
   const select = (name, list) => (
-    <NativeSelect id={name} {...register(name)}>{list.map((o) => <option key={o} value={o}>{label(o)}</option>)}</NativeSelect>
+    <NativeSelect id={name} className={quiet} {...register(name)}>{list.map((o) => <option key={o} value={o}>{label(o)}</option>)}</NativeSelect>
   );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6" noValidate>
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <Field label="Title" htmlFor="title" error={errors.title?.message}>
-            <Input id="title" {...register("title", { required: "Title is required" })} />
-          </Field>
-        </CardContent>
-      </Card>
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]" noValidate>
+      <div className="space-y-6">
+        <div>
+          <Label htmlFor="title" className="sr-only">Title</Label>
+          <Input
+            id="title"
+            placeholder="Test case title"
+            className={`h-auto ${quiet} py-2 text-2xl font-semibold md:text-2xl`}
+            {...register("title", { required: "Title is required" })}
+          />
+          {errors.title && <p role="alert" className="px-2.5 text-xs text-destructive">{errors.title.message}</p>}
+        </div>
+        {typeof errors.steps?.message === "string" && <p role="alert" className="px-2.5 text-xs text-destructive">{errors.steps.message}</p>}
 
-      <Card>
-        <CardHeader><CardTitle>Test steps</CardTitle></CardHeader>
-        <CardContent>
-          {typeof errors.steps?.message === "string" && <p role="alert" className="mb-3 text-xs text-destructive">{errors.steps.message}</p>}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Test steps" htmlFor="stepAction" error={errors.stepAction?.message} hint="One point per line, e.g. 1. Open the page">
-              <Textarea id="stepAction" rows={6} {...register("stepAction", { required: "Test steps are required" })} />
-            </Field>
-            <Field label="Step test data" htmlFor="stepData" error={errors.stepData?.message}>
-              <Textarea id="stepData" rows={6} {...register("stepData")} />
-            </Field>
-            <Field label="Expected result" htmlFor="stepExpected" error={errors.stepExpected?.message}>
-              <Textarea id="stepExpected" rows={6} {...register("stepExpected", { required: "Expected result is required" })} />
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
+        <Section id="preconditions" title="Preconditions" error={errors.preconditions?.message}>
+          <Textarea id="preconditions" rows={2} placeholder="What must be true before starting" className={quiet} {...register("preconditions")} />
+        </Section>
+        <Section id="stepAction" title="Test steps" error={errors.stepAction?.message} hint="One point per line, e.g. 1. Open the app">
+          <Textarea id="stepAction" rows={5} placeholder={"1. Open the app\n2. Go to the sign-up page\n3. Select 'Sign Up'"} className={quiet} {...register("stepAction", { required: "Test steps are required" })} />
+        </Section>
+        <Section id="stepData" title="Test data" error={errors.stepData?.message}>
+          <Textarea id="stepData" rows={3} placeholder="Email: test@example.com" className={quiet} {...register("stepData")} />
+        </Section>
+        <Section id="stepExpected" title="Expected result" error={errors.stepExpected?.message}>
+          <Textarea id="stepExpected" rows={3} placeholder="What should happen" className={quiet} {...register("stepExpected", { required: "Expected result is required" })} />
+        </Section>
+        {editing && (
+          <Section id="changeNote" title="Change note" error={errors.changeNote?.message} hint="Optional. Shown in version history.">
+            <Input id="changeNote" className={quiet} {...register("changeNote")} />
+          </Section>
+        )}
 
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Priority" htmlFor="priority">{select("priority", PRIORITIES)}</Field>
-            <Field label="Type" htmlFor="type">{select("type", TYPES)}</Field>
-            <Field label="Automation" htmlFor="automation">{select("automation", AUTOMATION)}</Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Component / module" htmlFor="component" error={errors.component?.message}>
-              <Input id="component" {...register("component")} />
-            </Field>
-            <Field label="Assignee" htmlFor="assigneeId" error={errors.assigneeId?.message}>
-              <NativeSelect id="assigneeId" {...register("assigneeId")}>
-                <option value="">Unassigned</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </NativeSelect>
-            </Field>
-          </div>
-          <Field label="Tags" htmlFor="tagsText" error={errors.tagsText?.message} hint="Comma separated, e.g. login, smoke">
-            <Input id="tagsText" {...register("tagsText")} />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Requirement link" htmlFor="requirementUrl" error={errors.requirementUrl?.message}>
-              <Input id="requirementUrl" type="url" placeholder="https://…" {...register("requirementUrl")} />
-            </Field>
-            <Field label="Related defect links" htmlFor="defectUrlsText" error={errors.defectUrlsText?.message} hint="One URL per line">
-              <Textarea id="defectUrlsText" rows={2} {...register("defectUrlsText")} />
-            </Field>
-          </div>
-          <Field label="Preconditions" htmlFor="preconditions" error={errors.preconditions?.message}>
-            <Textarea id="preconditions" rows={2} {...register("preconditions")} />
-          </Field>
-          <Field label="Test data" htmlFor="testData" error={errors.testData?.message}>
-            <Textarea id="testData" rows={2} {...register("testData")} />
-          </Field>
-        </CardContent>
-      </Card>
-
-      {editing && (
-        <Field label="Change note" htmlFor="changeNote" error={errors.changeNote?.message} hint="Optional. Shown in version history.">
-          <Input id="changeNote" {...register("changeNote")} />
-        </Field>
-      )}
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>{pending ? "Saving…" : editing ? "Save changes" : "Create test case"}</Button>
-        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+        <div className="flex gap-2">
+          <Button type="submit" disabled={pending}>{pending ? "Saving…" : editing ? "Save changes" : "Create test case"}</Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+        </div>
       </div>
+
+      <aside className="h-fit space-y-8">
+        <div className="space-y-2">
+          <h3 className="text-sm text-muted-foreground">Properties</h3>
+          <Prop id="priority" name="Priority">{select("priority", PRIORITIES)}</Prop>
+          <Prop id="type" name="Type">{select("type", TYPES)}</Prop>
+          <Prop id="automation" name="Automation">{select("automation", AUTOMATION)}</Prop>
+          <Prop id="assigneeId" name="Assignee" error={errors.assigneeId?.message}>
+            <NativeSelect id="assigneeId" className={quiet} {...register("assigneeId")}>
+              <option value="">Unassigned</option>
+              {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </NativeSelect>
+          </Prop>
+          <Prop id="component" name="Component" error={errors.component?.message}>
+            <Input id="component" placeholder="Module" className={quiet} {...register("component")} />
+          </Prop>
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-sm text-muted-foreground">Labels</h3>
+          <Label htmlFor="tagsText" className="sr-only">Tags</Label>
+          <Input id="tagsText" placeholder="login, smoke" className={quiet} {...register("tagsText")} />
+          {errors.tagsText && <p role="alert" className="text-xs text-destructive">{errors.tagsText.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-sm text-muted-foreground">Links</h3>
+          <Label htmlFor="requirementUrl" className="sr-only">Requirement link</Label>
+          <Input id="requirementUrl" type="url" placeholder="Requirement https://…" className={quiet} {...register("requirementUrl")} />
+          {errors.requirementUrl && <p role="alert" className="text-xs text-destructive">{errors.requirementUrl.message}</p>}
+          <Label htmlFor="defectUrlsText" className="sr-only">Related defect links</Label>
+          <Textarea id="defectUrlsText" rows={2} placeholder="Related defects, one URL per line" className={quiet} {...register("defectUrlsText")} />
+          {errors.defectUrlsText && <p role="alert" className="text-xs text-destructive">{errors.defectUrlsText.message}</p>}
+        </div>
+      </aside>
     </form>
   );
 }
