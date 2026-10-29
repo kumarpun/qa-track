@@ -15,7 +15,7 @@ import { label } from "./labels";
 function Section({ id, title, error, hint, children }) {
   return (
     <section className="space-y-1">
-      <Label htmlFor={id} className="px-2.5 text-sm font-semibold">{title}</Label>
+      <Label htmlFor={id} className="sr-only">{title}</Label>
       {children}
       {hint && !error && <p className="px-2.5 text-xs text-muted-foreground">{hint}</p>}
       {error && <p role="alert" className="px-2.5 text-xs text-destructive">{error}</p>}
@@ -106,7 +106,7 @@ export function CaseForm({ projectId, members, initial, caseId }) {
   );
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]" noValidate>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <div>
           <Label htmlFor="title" className="sr-only">Title</Label>
           <Input
@@ -120,20 +120,20 @@ export function CaseForm({ projectId, members, initial, caseId }) {
         {typeof errors.steps?.message === "string" && <p role="alert" className="px-2.5 text-xs text-destructive">{errors.steps.message}</p>}
 
         <Section id="preconditions" title="Preconditions" error={errors.preconditions?.message}>
-          <Textarea id="preconditions" rows={2} placeholder="What must be true before starting" className={quiet} {...register("preconditions")} />
+          <Textarea id="preconditions" rows={1} placeholder="Preconditions: what must be true before starting" className={`${quiet} min-h-9`} {...register("preconditions")} />
         </Section>
-        <Section id="stepAction" title="Test steps" error={errors.stepAction?.message} hint="One point per line, e.g. 1. Open the app">
-          <Textarea id="stepAction" rows={5} placeholder={"1. Open the app\n2. Go to the sign-up page\n3. Select 'Sign Up'"} className={quiet} {...register("stepAction", { required: "Test steps are required" })} />
+        <Section id="stepAction" title="Test steps" error={errors.stepAction?.message}>
+          <Textarea id="stepAction" rows={10} placeholder={"Test steps\n1. Open the app\n2. Go to the sign-up page\n3. Select 'Sign Up'"} className={`${quiet} min-h-64`} {...register("stepAction", { required: "Test steps are required" })} />
         </Section>
         <Section id="stepData" title="Test data" error={errors.stepData?.message}>
-          <Textarea id="stepData" rows={3} placeholder="Email: test@example.com" className={quiet} {...register("stepData")} />
+          <Textarea id="stepData" rows={1} placeholder="Test data, e.g. Email: test@example.com" className={`${quiet} min-h-9`} {...register("stepData")} />
         </Section>
         <Section id="stepExpected" title="Expected result" error={errors.stepExpected?.message}>
-          <Textarea id="stepExpected" rows={3} placeholder="What should happen" className={quiet} {...register("stepExpected", { required: "Expected result is required" })} />
+          <Textarea id="stepExpected" rows={1} placeholder="Expected result: what should happen" className={`${quiet} min-h-9`} {...register("stepExpected", { required: "Expected result is required" })} />
         </Section>
         {editing && (
-          <Section id="changeNote" title="Change note" error={errors.changeNote?.message} hint="Optional. Shown in version history.">
-            <Input id="changeNote" className={quiet} {...register("changeNote")} />
+          <Section id="changeNote" title="Change note" error={errors.changeNote?.message}>
+            <Input id="changeNote" placeholder="Change note (optional, shown in version history)" className={quiet} {...register("changeNote")} />
           </Section>
         )}
 

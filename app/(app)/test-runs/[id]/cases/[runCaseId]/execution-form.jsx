@@ -8,7 +8,6 @@ import { createDefectAction, recordExecutionAction } from "@/app/actions/executi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/form-field";
 import { NativeSelect } from "@/components/native-select";
 import { STATUS_LABELS } from "@/lib/metrics";
@@ -84,9 +83,9 @@ export function ExecutionForm({ projectId, runCaseId, steps, defects: initialDef
   };
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Record result</CardTitle></CardHeader>
-      <CardContent>
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold">Record result</h2>
+      <div>
         <form onSubmit={submit} className="space-y-4" noValidate>
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium">Result</legend>
@@ -185,7 +184,7 @@ export function ExecutionForm({ projectId, runCaseId, steps, defects: initialDef
 
           <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save result"}</Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
