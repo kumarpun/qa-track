@@ -24,9 +24,9 @@ export function useBrowserOptions() {
 export function BrowserRunOptions({ opts, update, disabled }) {
   return (
     <>
-      <NativeSelect aria-label="Window mode" className="w-auto" value={opts.headless ? "headless" : "visible"} disabled={disabled} onChange={(e) => update({ headless: e.target.value === "headless" })}>
+      <NativeSelect aria-label="Window mode" title="Headless runs in the background; Browser opens a visible window. Applies to every Run in browser button." className="w-auto" value={opts.headless ? "headless" : "visible"} disabled={disabled} onChange={(e) => update({ headless: e.target.value === "headless" })}>
         <option value="headless">Headless</option>
-        <option value="visible">Visible</option>
+        <option value="visible">Browser</option>
       </NativeSelect>
     </>
   );

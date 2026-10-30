@@ -23,10 +23,9 @@ export default async function SuiteDetailPage({ params }) {
   const ctx = await projectCtxById(projectId, "project.read");
   const suite = await getSuite(ctx, id).catch(() => null);
   if (!suite) notFound();
-  const archived = Boolean(suite.archived_at);
   const canWrite = can(ctx.role, "suite.write");
   const canRun = can(ctx.role, "run.manage");
-  const canRunBrowser = can(ctx.role, "testcase.write") && browserRunsEnabled() && !archived;
+  const canRunBrowser = can(ctx.role, "testcase.write") && browserRunsEnabled();
 
   return (
     <>
@@ -36,13 +35,12 @@ export default async function SuiteDetailPage({ params }) {
         actions={
           <>
             {canRunBrowser && <RunSuiteInBrowser projectId={projectId} caseIds={suite.cases.map((c) => c.id)} />}
-            {canRun && !archived && <Link href={`/test-runs/new?suite=${id}`} className={buttonVariants({ size: "sm" })}><PlayCircle /> Create run</Link>}
-            {canWrite && !archived && <Link href={`/test-suites/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
-            {canWrite && <SuiteActions projectId={projectId} suiteId={id} archived={archived} caseCount={suite.cases.length} canDelete={can(ctx.role, "testcase.write")} />}
+            {canRun && <Link href={`/test-runs/new?suite=${id}`} className={buttonVariants({ size: "sm" })}><PlayCircle /> Create run</Link>}
+            {canWrite && <Link href={`/test-suites/${id}/edit`} className={buttonVariants({ variant: "outline", size: "sm" })}><Pencil /> Edit</Link>}
+            {canWrite && <SuiteActions projectId={projectId} suiteId={id} caseCount={suite.cases.length} canDelete={can(ctx.role, "testcase.write")} />}
           </>
         }
       />
-      {archived && <p className="mb-4 rounded-md border bg-muted px-3 py-2 text-sm">This suite is archived. Restore it to change it or use it in new runs.</p>}
       {suite.description && <p className="mb-4 whitespace-pre-wrap text-sm">{suite.description}</p>}
       {suite.tags.length > 0 && <div className="mb-4 flex flex-wrap gap-1">{suite.tags.map((t) => <Badge key={t} variant="outline">{t}</Badge>)}</div>}
 
@@ -52,7 +50,7 @@ export default async function SuiteDetailPage({ params }) {
           <CardContent>
             <ul className="space-y-1 text-sm">
               {suite.children.map((c) => (
-                <li key={c.id}><Link className="hover:underline" href={`/test-suites/${c.id}`}>{c.name}</Link>{c.archived_at && <span className="ml-2 text-xs text-muted-foreground">archived</span>}</li>
+                <li key={c.id}><Link className="hover:underline" href={`/test-suites/${c.id}`}>{c.name}</Link></li>
               ))}
             </ul>
           </CardContent>
@@ -65,8 +63,8 @@ export default async function SuiteDetailPage({ params }) {
           <SuiteCases
             projectId={projectId}
             suiteId={id}
-            editable={canWrite && !archived}
-            canSetStatus={can(ctx.role, "testcase.write") && !archived}
+            editable={canWrite}
+            canSetStatus={can(ctx.role, "testcase.write")}
             canCreate={can(ctx.role, "testcase.write")}
             cases={suite.cases.map((c) => ({ id: c.id, code: c.code, title: c.title, priority: c.priority, status: c.status }))}
           />

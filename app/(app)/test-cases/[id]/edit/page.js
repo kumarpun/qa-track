@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { projectCtxById } from "@/lib/server/page";
-import { getCase, getCaseProjectId } from "@/lib/server/services/testcases";
+import { getCase, getCaseProjectId, listCaseOptions } from "@/lib/server/services/testcases";
 import { listMembers } from "@/lib/server/services/projects";
 import { CaseForm } from "../../case-form";
 
@@ -11,7 +11,7 @@ export default async function EditTestCasePage({ params }) {
   const projectId = await getCaseProjectId(id);
   if (!projectId) notFound();
   const ctx = await projectCtxById(projectId, "testcase.write");
-  const [tc, members] = await Promise.all([getCase(ctx, id).catch(() => null), listMembers(projectId)]);
+  const [tc, members, linkable] = await Promise.all([getCase(ctx, id).catch(() => null), listMembers(projectId), listCaseOptions(ctx)]);
   if (!tc) notFound();
   return (
     <>
@@ -19,6 +19,7 @@ export default async function EditTestCasePage({ params }) {
         projectId={projectId}
         caseId={id}
         initial={tc}
+        linkable={linkable}
         members={members.filter((m) => m.active || m.user_id === tc.assigneeId).map((m) => ({ id: m.user_id, name: m.name }))}
       />
     </>

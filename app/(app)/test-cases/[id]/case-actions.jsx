@@ -37,7 +37,7 @@ export function CaseActions({ projectId, caseId }) {
         open={confirm}
         onOpenChange={setConfirm}
         title="Delete this test case permanently?"
-        description="This cannot be undone. The test case, its steps and suite membership are removed from the database. A case that is part of a test run cannot be deleted."
+        description="This cannot be undone. The test case, its steps and suite membership are removed from the database. A case in a test run that is not completed cannot be deleted; completed runs keep their results."
         confirmLabel="Delete"
         onConfirm={remove}
       />

@@ -81,11 +81,24 @@ test("suite: add + reorder cases, then the run keeps its frozen copy after the c
   await page.getByPlaceholder("Search name or code…").fill(`Run ${id}`);
   await expect(page.getByTestId("run-row")).toHaveCount(1);
 
-  // Archive the suite; it can no longer be edited.
+  // No archive feature any more; the suite is hard-deleted. Refused while its cases sit in an unfinished run.
   await page.goto(suiteUrl);
-  await page.getByRole("button", { name: "Archive" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Archive" }).click();
-  await expect(page.getByText(/This suite is archived/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Archive" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete suite and cases" }).click();
+  await expect(page.getByText(/Cannot delete: used in test runs that are not completed/).first()).toBeVisible();
+
+  // Once the run is completed the suite (and its cases) can be deleted; the run keeps its snapshots.
+  await page.goto(runUrl);
+  await page.getByRole("button", { name: "Complete run" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Complete run" }).click();
+  await expect(page.getByRole("button", { name: "Reopen run" })).toBeVisible();
+  await page.goto(suiteUrl);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete suite and cases" }).click();
+  await expect(page).toHaveURL(/\/test-suites$/);
+  await page.goto(runUrl);
+  await expect(page.getByTestId("run-case")).toHaveCount(2);
 });
 
 test("run creation requires a scope", async ({ page }) => {

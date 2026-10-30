@@ -5,6 +5,7 @@ import { listCases } from "@/lib/server/services/testcases";
 import { listMembers } from "@/lib/server/services/projects";
 import { listParamsSchema } from "@/lib/validation/testcase";
 import { can } from "@/lib/permissions";
+import { browserRunsEnabled } from "@/lib/server/automation/config";
 import { PageHeader, EmptyState } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Filters } from "./filters";
@@ -52,6 +53,7 @@ export default async function TestCasesPage({ searchParams }) {
           total={result.total}
           params={params}
           canWrite={canWrite}
+          canRunBrowser={canWrite && browserRunsEnabled()}
           members={members.map((m) => ({ id: m.user_id, name: m.name }))}
         />
       )}

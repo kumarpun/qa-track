@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { run } from "@/lib/server/action";
 import { requireProject } from "@/lib/server/dal";
+import { suiteCaseIds } from "@/lib/server/services/suites";
 import { runCaseInBrowser, runRunCaseInBrowser } from "@/lib/server/services/automation";
 
 const uuidSchema = z.string().uuid();
@@ -27,5 +28,13 @@ export async function runRunCaseInBrowserAction(projectId, runCaseId, options) {
     revalidatePath("/");
     revalidatePath("/execution");
     return res;
+  });
+}
+
+/** Case ids of the given suites, so the client can run them one by one (each run is its own request). */
+export async function suiteCaseIdsAction(projectId, suiteIds) {
+  return run(null, null, async () => {
+    const ctx = await requireProject(uuidSchema.parse(projectId), "testcase.write");
+    return suiteCaseIds(ctx, z.array(uuidSchema).max(500).parse(suiteIds));
   });
 }

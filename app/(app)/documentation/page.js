@@ -16,6 +16,7 @@ const KEYWORDS = [
   ["Text should present: <text>", "Wait until the text is on the page (also: Should see, Should contain)", "Should see Welcome back"],
   ["Validation message: '<text>'", "Text on the page, or an input's own browser validation message", "Validation message: 'Email is invalid'"],
   ["Should navigate to url: <url>", "The browser must be on exactly this URL (ignores trailing / and #fragment)", "Should navigate to url: https://app.example.com/dashboard"],
+  ["Call / Run / Include <test case title or code>", "Runs another case's steps at this point (same project, up to 3 levels). Reuse a login case instead of copying its steps", "Call Willow admin login"],
   ["Form does not submit", "The URL is unchanged after the last click (negative tests)", "Form does not submit"],
 ];
 

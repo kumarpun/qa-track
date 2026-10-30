@@ -9,17 +9,25 @@ import { StatusBadge } from "@/components/status-badge";
 import { canCreateProject } from "@/lib/permissions";
 import { StatusChart, TrendChart } from "./dashboard-charts";
 
-function Stat({ href, label, value, sub, icon: Icon }) {
+const TONES = {
+  primary: "bg-gold/20 text-[oklch(0.5_0.11_75)] dark:text-gold",
+  green: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+  red: "bg-red-500/12 text-red-600 dark:text-red-400",
+  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  sky: "bg-sky-500/12 text-sky-600 dark:text-sky-400",
+};
+
+function Stat({ href, label, value, sub, icon: Icon, tone = "primary" }) {
   return (
     <Link href={href} className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      <Card className="transition-colors group-hover:bg-accent/40">
+      <Card className="transition-all group-hover:-translate-y-0.5 group-hover:shadow-md">
         <CardContent className="flex items-start justify-between pt-6">
           <div>
             <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+            <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">{value}</p>
             {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
           </div>
-          <Icon className="size-5 text-muted-foreground" aria-hidden />
+          <span className={`flex size-10 items-center justify-center rounded-lg ${TONES[tone]}`}><Icon className="size-5" aria-hidden /></span>
         </CardContent>
       </Card>
     </Link>
@@ -52,15 +60,15 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader title="Dashboard" description={<>{project.key} · {project.name}{d.latestRun && <> · Latest run: <b className="text-black dark:text-white"><i>{d.latestRun.code}</i></b> · {d.latestRun.name}</>}</>} />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 min-[120rem]:grid-cols-8">
         <Stat href="/test-cases" label="Test cases" value={d.latestRun ? `${p.total} / ${d.totalCases}` : d.totalCases} sub={d.latestRun ? `in ${d.latestRun.code} / in project` : undefined} icon={FileCheck2} />
-        <Stat href="/test-suites" label="Test suites" value={d.totalSuites} icon={Layers} />
-        <Stat href="/test-runs" label="Test runs" value={d.totalRuns} sub={`${d.runCounts.IN_PROGRESS ?? 0} in progress`} icon={PlayCircle} />
-        <Stat href="/defects" label="Open defects" value={d.openDefects} sub={`${Object.values(d.defects).reduce((a, b) => a + b, 0)} total`} icon={Bug} />
-        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Executed" value={`${p.completed} / ${p.total}`} sub={d.latestRun ? `${p.progressPct}% of ${d.latestRun.code}` : "No runs yet"} icon={CheckCircle2} />
-        <Stat href="/reports" label="Pass rate" value={`${p.passRate}%`} sub={`${p.executedPassRate}% of executed`} icon={Percent} />
-        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Failed" value={p.FAILED} icon={Bug} />
-        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Blocked / Retest" value={`${p.BLOCKED} / ${p.RETEST}`} icon={PlayCircle} />
+        <Stat href="/test-suites" label="Test suites" value={d.totalSuites} icon={Layers} tone="sky" />
+        <Stat href="/test-runs" label="Test runs" value={d.totalRuns} sub={`${d.runCounts.IN_PROGRESS ?? 0} in progress`} icon={PlayCircle} tone="amber" />
+        <Stat href="/defects" label="Open defects" value={d.openDefects} sub={`${Object.values(d.defects).reduce((a, b) => a + b, 0)} total`} icon={Bug} tone="red" />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Executed" value={`${p.completed} / ${p.total}`} sub={d.latestRun ? `${p.progressPct}% of ${d.latestRun.code}` : "No runs yet"} icon={CheckCircle2} tone="green" />
+        <Stat href="/reports" label="Pass rate" value={`${p.passRate}%`} sub={`${p.executedPassRate}% of executed`} icon={Percent} tone="green" />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Failed" value={p.FAILED} icon={Bug} tone="red" />
+        <Stat href={d.latestRun ? `/test-runs/${d.latestRun.id}` : "/test-runs"} label="Blocked / Retest" value={`${p.BLOCKED} / ${p.RETEST}`} icon={PlayCircle} tone="amber" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">

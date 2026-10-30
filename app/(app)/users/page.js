@@ -8,7 +8,7 @@ import { UsersTable } from "./users-table";
 export default async function UsersPage() {
   const me = await requireUserPage();
   if (!canManageUsers(me.role)) notFound();
-  const users = await listUsers();
+  const users = await listUsers(me.org_id);
   return (
     <>
       <PageHeader title="Users & Settings" description="Manage accounts and global roles. Project access is managed per project." />

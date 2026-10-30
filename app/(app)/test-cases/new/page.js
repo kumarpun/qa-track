@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { activeProjectCtx } from "@/lib/server/page";
 import { listMembers } from "@/lib/server/services/projects";
+import { listCaseOptions } from "@/lib/server/services/testcases";
 import { getSuite } from "@/lib/server/services/suites";
 import { CaseForm } from "../case-form";
 
@@ -15,8 +16,8 @@ export default async function NewTestCasePage({ searchParams }) {
     const s = await getSuite(ctx, suiteParam).catch(() => null);
     if (s && !s.archived_at) suite = { id: s.id, name: s.name };
   }
-  const members = await listMembers(ctx.project.id);
+  const [members, linkable] = await Promise.all([listMembers(ctx.project.id), listCaseOptions(ctx)]);
   return (
-    <CaseForm projectId={ctx.project.id} suite={suite} members={members.filter((m) => m.active).map((m) => ({ id: m.user_id, name: m.name }))} />
+    <CaseForm projectId={ctx.project.id} suite={suite} linkable={linkable} members={members.filter((m) => m.active).map((m) => ({ id: m.user_id, name: m.name }))} />
   );
 }

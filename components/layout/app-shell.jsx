@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Search, Moon, Sun, LogOut, User as UserIcon, ChevronsUpDown, Check, Menu } from "lucide-react";
+import { FlaskConical, PanelLeftClose, PanelLeftOpen, Search, Moon, Sun, LogOut, User as UserIcon, ChevronsUpDown, Check, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { NAV } from "./nav";
+import { NAV, groupNav } from "./nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +22,18 @@ import { switchProjectAction } from "@/app/actions/projects";
 const LABELS = Object.fromEntries(NAV.map((n) => [n.href.slice(1), n.label]));
 LABELS.profile = "Profile";
 LABELS.new = "New";
+
+function Logo({ withName = true }) {
+  return (
+    <span className="flex items-center gap-2.5 font-semibold tracking-tight">
+      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.86_0.12_88)] to-[oklch(0.66_0.12_72)] text-[oklch(0.2_0.03_70)] shadow-[0_0_18px_-2px_oklch(0.78_0.12_82/0.55)]"><FlaskConical className="size-4" aria-hidden /></span>
+      {withName && <span className="font-display text-lg">TestTrack</span>}
+    </span>
+  );
+}
+
+const NAV_LINK = "relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+const NAV_ACTIVE = "bg-sidebar-accent font-medium text-sidebar-accent-foreground before:absolute before:-left-2 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-sidebar-primary [&_svg]:text-sidebar-primary";
 
 function Breadcrumbs() {
   const pathname = usePathname();
@@ -109,7 +121,7 @@ function UserMenu({ user }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" className="gap-2 px-1.5" aria-label="User menu" />}>
-        <Avatar className="size-7"><AvatarFallback className="text-xs">{initials}</AvatarFallback></Avatar>
+        <Avatar className="size-7"><AvatarFallback className="bg-gradient-to-br from-[oklch(0.86_0.12_88)] to-[oklch(0.66_0.12_72)] text-xs font-semibold text-[oklch(0.2_0.03_70)]">{initials}</AvatarFallback></Avatar>
         <span className="hidden text-sm sm:inline">{user.name}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -150,60 +162,66 @@ export function AppShell({ user, projects, activeProjectId, children }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className={cn("print:!hidden sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar transition-[width] md:flex", collapsed ? "w-14" : "w-56")}>
-        <div className="flex h-14 items-center justify-between border-b px-3">
-          {!collapsed && <span className="font-semibold tracking-tight">TestTrack</span>}
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+      <aside className={cn("print:!hidden sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] md:flex", collapsed ? "w-14" : "w-56")}>
+        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3">
+          {!collapsed && <Logo />}
+          <Button variant="ghost" size="icon" className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={toggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
             {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
           </Button>
         </div>
-        <nav aria-label="Main" className="flex-1 space-y-0.5 p-2">
-          {visibleNav.map(({ href, label, icon: Icon, exact }) => {
-            const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                title={collapsed ? label : undefined}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                  active && "bg-accent font-medium text-accent-foreground",
-                  collapsed && "justify-center px-0",
-                )}
-              >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                {!collapsed && <span className="truncate">{label}</span>}
-              </Link>
-            );
-          })}
+        <nav aria-label="Main" className={cn("flex-1 overflow-y-auto p-2", !collapsed && "p-3 pl-4")}>
+          {groupNav(visibleNav).map((g, i) => (
+            <div key={g.label} className={cn("space-y-1", i > 0 && (collapsed ? "mt-3 border-t border-sidebar-border pt-3" : "mt-5"))}>
+              {!collapsed && <p className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-widest text-sidebar-foreground/40">{g.label}</p>}
+              {g.items.map(({ href, label, icon: Icon, exact }) => {
+                const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    title={collapsed ? label : undefined}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(NAV_LINK, active && NAV_ACTIVE, collapsed && "justify-center px-0")}
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden />
+                    {!collapsed && <span className="truncate">{label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="print:hidden sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
+        <header className="print:hidden sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" />}>
               <Menu />
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <SheetTitle className="border-b px-4 py-3.5 font-semibold tracking-tight">TestTrack</SheetTitle>
-              <nav aria-label="Mobile" className="space-y-0.5 p-2">
-                {visibleNav.map(({ href, label, icon: Icon, exact }) => {
-                  const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setMobileOpen(false)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn("flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground", active && "bg-accent font-medium text-accent-foreground")}
-                    >
-                      <Icon className="size-4 shrink-0" aria-hidden />
-                      <span>{label}</span>
-                    </Link>
-                  );
-                })}
+            <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+              <SheetTitle className="border-b border-sidebar-border px-4 py-3 text-sidebar-foreground"><Logo /></SheetTitle>
+              <nav aria-label="Mobile" className="overflow-y-auto p-2">
+                {groupNav(visibleNav).map((g, i) => (
+                  <div key={g.label} className={cn("space-y-0.5", i > 0 && "mt-4")}>
+                    <p className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-widest text-sidebar-foreground/40">{g.label}</p>
+                    {g.items.map(({ href, label, icon: Icon, exact }) => {
+                      const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setMobileOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(NAV_LINK, active && NAV_ACTIVE)}
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden />
+                          <span>{label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))}
               </nav>
             </SheetContent>
           </Sheet>
@@ -216,7 +234,7 @@ export function AppShell({ user, projects, activeProjectId, children }) {
             <UserMenu user={user} />
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-8 2xl:p-10"><div className="mx-auto w-full max-w-[110rem]">{children}</div></main>
       </div>
     </div>
   );

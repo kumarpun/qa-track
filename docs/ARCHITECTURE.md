@@ -7,7 +7,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - `app/` – routes. Pages are server components that call services directly; interactive bits are small client components.
 - `app/actions/*` – server actions (`"use server"`). Each wraps `run(schema, input, fn)`: zod validation → service → `{ok,data}|{ok:false,error,fieldErrors}`.
 - `lib/server/dal.js` – the **only** place authn/authz is decided (`requireUser`, `requireProject(projectId, action)`). `proxy.js` is an optimistic redirect only.
-- `lib/server/services/*` – business logic and SQL. Take the already-authorized actor; write audit rows in the same transaction.
+- `lib/server/services/*` – business logic and SQL. Take the already-authorized actor.
 - `lib/permissions.js`, `lib/metrics.js` – pure, unit-tested (permission matrix; the single pass-rate/progress function used everywhere).
 - `db/migrations/*.sql` + `scripts/migrate.mjs` – hand-written migrations, tracked in `_migrations`.
 
@@ -21,7 +21,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - Non-members get 404, not 403, so project IDs cannot be probed.
 
 ## Test case module (Phase 2)
-- Layers: `app/(app)/test-cases/*` (server pages + client forms) → `app/actions/testcases.js` (Zod + `run()` result wrapper) → `lib/server/services/testcases.js` (transactions, audit) → `lib/server/db.js`.
+- Layers: `app/(app)/test-cases/*` (server pages + client forms) → `app/actions/testcases.js` (Zod + `run()` result wrapper) → `lib/server/services/testcases.js` (transactions) → `lib/server/db.js`.
 - `lib/csv.js` is a dependency-free RFC 4180 parser/writer; `lib/testcase-csv.js` maps rows to cases (one row per step, all-or-nothing, line-numbered errors).
 - Content edits (title, steps, priority…) update `test_cases` and replace its `test_case_steps` rows; nothing else is written. The case page shows pass/fail result history.
 
@@ -35,7 +35,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - `services/executions.js` (`recordExecution`, comments, run status transitions), `defects.js` (quick-create and linking), `attachments.js` (disk storage, allowlist, size limits); actions in `app/actions/executions.js`, files via `app/api/attachments`.
 - `recordExecution` locks the run case row (`FOR UPDATE`), inserts a `test_executions` row (never updates old ones) plus per-step rows and defect links, then refreshes `test_run_cases.status`. The first result moves a Draft run to In progress. Closed runs reject results (409).
 - Pass rate is PASSED / total cases: NOT_RUN and RETEST both count as not passed.
-- Run status transitions: Draft/In progress → Completed/Cancelled; closed → In progress (reopen). Every transition is audited.
+- Run status transitions: Draft/In progress → Completed/Cancelled; closed → In progress (reopen).
 - Attachment authorization: upload needs `run.execute` on the execution's project; download needs membership; non-members get 404.
 
 ## Defects and reports (Phase 5)
@@ -44,8 +44,7 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 - Reports (`services/reports.js`) reuse `computeProgress`/`sumCounts`, so the pass rate matches the dashboard and run pages. Runs are capped at 200 per report.
 - CSV endpoints are GET route handlers: validate the project id, `requireProject(..., "report.read")`, `Cache-Control: no-store`, serialise through `toCsv` (formula-injection guard).
 
-## Audit and security (Phase 6)
-- `services/audit-log.js` reads `audit_logs` (joined to users); project scope is applied by the page from the caller's role, never from a query parameter. Metadata is rendered as text only.
+## Security (Phase 6)
 - `authenticate()` counts failures in `login_attempts` per submitted email; the check runs before the bcrypt compare. Review and accepted risks live in `docs/SECURITY.md`.
 
 ## Roadmap
@@ -56,5 +55,5 @@ Next.js 16 (App Router, JavaScript, server components by default) · Tailwind + 
 | 3 | Suites, run creation with snapshots | done |
 | 4 | Execution UI, attachments, comments, history | done |
 | 5 | Defects, reports, CSV/print | done |
-| 6 | Audit log UI, permission/security review, test suite | done |
+| 6 | Permission/security review, test suite | done |
 | 7 | Polish, docs | done |

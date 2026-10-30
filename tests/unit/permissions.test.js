@@ -52,7 +52,6 @@ describe("full role × action matrix", () => {
     "defect.delete": ["QA_LEAD", "ADMIN"],
     "run.manage": ["QA_LEAD", "ADMIN"],
     "project.manage": ["QA_LEAD", "ADMIN"],
-    "audit.read": ["QA_LEAD", "ADMIN"],
   };
 
   it("covers every defined action", () => {

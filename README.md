@@ -22,19 +22,21 @@ Demo logins (password `Passw0rd!demo`): `admin@example.com`, `lead@example.com`,
 | `npm run build` | production build |
 
 ## Status (all 7 phases complete)
-Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, audit-log writes, 19-table normalized schema.
+Multi-tenant sign-up (free, no subscription): `/signup` creates a company (organization) and its first user, an Admin of that company only. Users and projects belong to one organization (`org_id`, migration 013); Admin sees and manages only their own organization's users and projects, and project keys are unique per organization. Nothing crosses organizations: other companies' projects 404 even by direct URL, and user pickers (add member, owner, assignee, @mentions) list only same-organization users. Existing data lives in the "Default" organization. Not built: email verification, sign-up rate limiting, billing; sign-up is always open. Emails stay globally unique (a duplicate sign-up reveals that the email is registered).
+
+Phase 1: credentials auth (bcrypt, signed httpOnly session cookie), RBAC (Admin / QA Lead / QA Engineer / Viewer) enforced server-side, project CRUD + members + switcher, user admin, profile/password change, dashboard with real DB metrics and charts, collapsible sidebar, dark mode, breadcrumbs, 19-table normalized schema.
 
 Phase 2 (test cases): project-scoped codes (`TC-APP-0001`), steps (action / data / expected), edited in place (no version history), a pass/fail result history per case across runs, duplicate, permanent delete with confirmation (blocked for cases used in runs), bulk actions (delete, assign, priority/type/automation), search / filter / sort with DB-level pagination, CSV import (dry-run preview) and export, audit entries.
 
-Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, archive/restore, duplicate), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
+Phase 3 (suites and runs): nested test suites (many-to-many with cases, reorder, duplicate, hard delete), run creation from suites and/or individually picked cases (`RUN-APP-0001`) with environment, build, platform, planned dates and testers. Each run **snapshots** every case (content + steps) at creation, so later case edits never change a run. Run list with search / status / environment / build filters and DB-level pagination; read-only run detail with per-status counts (Retest counts as pending, not passed). Creating runs needs QA Lead or Admin; managing suites needs QA Engineer or above.
 
 Phase 4 (execution): open a run case to see its frozen snapshot, record Passed / Failed / Blocked / Skipped / Retest with optional per-step results, actual result, comment, defect links (existing, or "Report new defect" inline) and attachments. Failed requires an actual result. Every save appends an execution row (append-only history); the run case shows its latest status. Retest stays in the pass-rate denominator, so it never inflates the rate. Runs can be completed, cancelled or reopened (results are rejected while a run is closed). Comments per run case; `/execution` lists open runs. Executing needs QA Engineer or above; Viewers are read-only. QA Lead or Admin can permanently delete a run (any status) from its page: results, comments and attachments go with it and vanish from case history, reports and dashboard trend; defects stay.
 
 Attachments are stored on local disk under `UPLOAD_DIR` (outside the web root, gitignored) with an extension allowlist (png, jpg, jpeg, gif, webp, pdf, txt, log, csv, json, mp4, webm, zip), 8 MB per file and 10 files per execution. Downloads go through `/api/attachments/:id`, which checks project membership, sends `nosniff` and a sandbox CSP, and only renders images inline.
 
-Phase 5 (defects and reports): defects with project-scoped codes (`DEF-APP-0001`), full create / edit / detail / list (search, status / severity / priority / assignee filters, pagination), lifecycle statuses (Open, In progress, Fixed, Retest, Closed, Reopened; each change is audited), optional http(s)-only external URL (shown with `rel="noopener noreferrer"`). One defect can be linked from many executions; the detail page lists them. Deleting needs QA Lead or Admin and is refused while any execution is linked (close the defect instead). Reports page uses live DB data: totals, pass rate (Retest = pending), results by status, per-run table, defects by severity / status, top failing cases. Exports: `/defects/export` (honours list filters), `/reports/export?type=runs|cases|defects`; all cells are formula-injection safe. The **Print view** button prints the report with sidebar and header hidden. Writing defects needs QA Engineer or above; Viewers can read and export.
+Phase 5 (defects and reports): defects with project-scoped codes (`DEF-APP-0001`), full create / edit / detail / list (search, status / severity / priority / assignee filters, pagination), lifecycle statuses (Open, In progress, Fixed, Retest, Closed, Reopened), optional http(s)-only external URL (shown with `rel="noopener noreferrer"`). One defect can be linked from many executions; the detail page lists them. Deleting needs QA Lead or Admin and is refused while any execution is linked (close the defect instead). Reports page uses live DB data: totals, pass rate (Retest = pending), results by status, per-run table, defects by severity / status, top failing cases. Exports: `/defects/export` (honours list filters), `/reports/export?type=runs|cases|defects`; all cells are formula-injection safe. The **Print view** button prints the report with sidebar and header hidden. Writing defects needs QA Engineer or above; Viewers can read and export.
 
-Phase 6 (audit and security): `/audit-log` (QA Lead: active project; Admin: everything) with action-prefix / entity / date filters and pagination; new `audit.read` permission. Sign-in lockout: 5 failed attempts per email in 15 minutes blocks further attempts for the window (`login_attempts` table, migration 002). Security headers, a full role × action permission-matrix unit test and E2E checks for audit access, lockout and headers. See [docs/SECURITY.md](docs/SECURITY.md) for the review and accepted risks.
+Phase 6 (security): Sign-in lockout: 5 failed attempts per email in 15 minutes blocks further attempts for the window (`login_attempts` table, migration 002). Security headers, a full role × action permission-matrix unit test and E2E checks for audit access, lockout and headers. See [docs/SECURITY.md](docs/SECURITY.md) for the review and accepted risks.
 
 ### CSV format
 One row per step. A row with a `title` starts a new case; following rows with only step columns add steps to it.
@@ -57,7 +59,7 @@ Columns: `TC ID, Module, Test Case, Description, Pre-conditions, Test Steps, Tes
 | Role | Can |
 |---|---|
 | Admin | everything, including users and all projects |
-| QA Lead | manage projects they belong to, create runs, delete defects, read the audit log |
+| QA Lead | manage projects they belong to, create runs, delete defects |
 | QA Engineer | write cases, suites, defects; execute runs and comment |
 | Viewer | read and export only |
 
@@ -80,9 +82,11 @@ On a test case page, **Run in browser** opens a visible Chromium window on the m
 
 The same button on a **test suite** page runs every case in the suite one after another and shows a pass/fail summary; cases that are not runnable count as not passed and keep their status.
 
+The **Test Suites list** has a play icon on every row (runs that suite) and a **Run all in browser** button in the header (runs every suite's cases, a case shared by several suites once), with the same Headless / Visible picker. Only one run happens at a time.
+
 On a **run case** page (needs QA Engineer or above, run open), the same button runs the run's frozen snapshot steps and records the outcome as a normal execution (Passed/Failed, with the step log in the comment), so the run, reports and dashboard update like a manual result. Not-runnable cases are refused and nothing is recorded.
 
-A **Visible / Headless** picker sits next to the button (remembered in your browser; `BROWSER_RUNS_HEADLESS=1` is no longer needed). Visible mode holds the window briefly and slows actions so you can watch.
+A **Headless / Browser** picker sits next to the button (remembered in your browser; `BROWSER_RUNS_HEADLESS=1` is no longer needed). Browser mode (visible window) holds the window briefly and slows actions so you can watch.
 
 Setup: `npx playwright install chromium`, set `ENABLE_BROWSER_RUNS=1` in `.env`, run `node scripts/migrate.mjs`. Local use only: the server visits URLs written in test cases, so keep it off elsewhere.
 

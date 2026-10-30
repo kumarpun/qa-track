@@ -94,3 +94,34 @@ it("accepts 'Visit site:' style navigation", () => {
   expect(parseLine("1. Visit site: https://a.test/admin")).toMatchObject({ kind: "goto", url: "https://a.test/admin" });
   expect(parseLine("Open the page https://a.test")).toMatchObject({ kind: "goto", url: "https://a.test" });
 });
+
+describe("click targets with a region", () => {
+  it("splits 'Click Groups in sidenav' into label + region", () => {
+    expect(parseLine("Click Groups in sidenav")).toMatchObject({ kind: "click", target: "Groups", scope: "nav" });
+    expect(parseLine("1. Click on the 'Groups' link in the side nav")).toMatchObject({ target: "Groups", scope: "nav" });
+    expect(parseLine("Press Save button in the header")).toMatchObject({ target: "Save", scope: "header" });
+    expect(parseLine("Click Groups from sidebar")).toMatchObject({ target: "Groups", scope: "nav" });
+    expect(parseLine("Click Privacy on footer")).toMatchObject({ target: "Privacy", scope: "footer" });
+    expect(parseLine("Click Auditor in table")).toMatchObject({ target: "Auditor", scope: "content" });
+    expect(parseLine("Click Auditor in the main content")).toMatchObject({ target: "Auditor", scope: "content" });
+  });
+
+  it("leaves plain clicks unscoped and still rejects 'Select X from Y'", () => {
+    expect(parseLine("Click login")).toEqual({ kind: "click", target: "login", source: "Click login" });
+    expect(parseLine("Click Sign in button")).toMatchObject({ target: "Sign in" });
+    expect(parseLine("Select Australia from Country")).toBeNull();
+  });
+});
+
+describe("call instruction", () => {
+  it("parses a call by title or code, with optional quotes and case keyword", () => {
+    expect(parseLine("Call Willow admin login")).toMatchObject({ kind: "call", ref: "Willow admin login" });
+    expect(parseLine("2. Run test case: TC-WILLOW-0091")).toMatchObject({ kind: "call", ref: "TC-WILLOW-0091" });
+    expect(parseLine('Include "Willow admin login"')).toMatchObject({ kind: "call", ref: "Willow admin login" });
+  });
+  it("keeps call lines in action order and does not shadow other rules", () => {
+    const { instructions, unsupported } = parseCaseSteps([{ action: "Call Login\nClick Save button", expected: "Should see Done" }]);
+    expect(unsupported).toEqual([]);
+    expect(instructions.map((i) => i.kind)).toEqual(["call", "click", "seeText"]);
+  });
+});

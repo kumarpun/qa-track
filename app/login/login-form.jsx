@@ -8,7 +8,6 @@ import { loginSchema } from "@/lib/validation/auth";
 import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Field } from "@/components/form-field";
 
 export function LoginForm() {
@@ -31,8 +30,6 @@ export function LoginForm() {
     });
 
   return (
-    <Card>
-      <CardContent className="pt-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <Field label="Email" htmlFor="email" error={errors.email?.message}>
             <Input id="email" type="email" autoComplete="username" autoFocus {...register("email")} />
@@ -41,11 +38,9 @@ export function LoginForm() {
             <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
           </Field>
           {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
-          <Button type="submit" className="w-full" disabled={pending}>
+          <Button type="submit" size="lg" className="w-full" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
-      </CardContent>
-    </Card>
   );
 }

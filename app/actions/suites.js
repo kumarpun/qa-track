@@ -62,13 +62,6 @@ export async function fillSuiteStatusAction(projectId, suiteIds, status) {
   });
 }
 
-export async function archiveSuiteAction(projectId, suiteId, archived) {
-  return run(z.boolean(), archived, async (a) => {
-    await svc.setSuiteArchived(await ctxFor(projectId), uuidSchema.parse(suiteId), a);
-    refresh();
-  });
-}
-
 export async function duplicateSuiteAction(projectId, suiteId) {
   return run(null, null, async () => {
     const res = await svc.duplicateSuite(await ctxFor(projectId), uuidSchema.parse(suiteId));

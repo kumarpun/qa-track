@@ -4,6 +4,8 @@ import { z } from "zod";
 import { ChevronLeft, ChevronRight, FastForward } from "lucide-react";
 import { projectCtxById } from "@/lib/server/page";
 import { getRunCase, getRunCaseProjectId } from "@/lib/server/services/executions";
+import { listCaseOptions } from "@/lib/server/services/testcases";
+import { LinkedText } from "../../../../test-cases/linked-text";
 import { mentionableMembers } from "@/lib/server/services/notifications";
 import { can } from "@/lib/permissions";
 import { browserRunsEnabled } from "@/lib/server/automation/config";
@@ -44,7 +46,7 @@ export default async function RunCasePage({ params }) {
   const projectId = await getRunCaseProjectId(runCaseId);
   if (!projectId) notFound();
   const ctx = await projectCtxById(projectId, "project.read");
-  const rc = await getRunCase(ctx, runCaseId).catch(() => null);
+  const [rc, linkable] = await Promise.all([getRunCase(ctx, runCaseId).catch(() => null), listCaseOptions(ctx)]);
   if (!rc || rc.runId !== id) notFound();
 
   const s = rc.snapshot;
@@ -75,7 +77,7 @@ export default async function RunCasePage({ params }) {
           {s.preconditions && <Section title="Preconditions"><Text>{s.preconditions}</Text></Section>}
           <Section title="Test steps">
             {steps.length === 0 && <p className="text-sm text-muted-foreground">No steps.</p>}
-            {steps.map((st, i) => <div key={st.position} data-testid="snapshot-step"><Text>{numbered(i, st.action)}</Text></div>)}
+            {steps.map((st, i) => <div key={st.position} data-testid="snapshot-step"><LinkedText cases={linkable}>{numbered(i, st.action)}</LinkedText></div>)}
           </Section>
           {withData.length > 0 && <Section title="Test data">{steps.map((st, i) => st.testData && <Text key={st.position}>{numbered(i, st.testData)}</Text>)}</Section>}
           {steps.length > 0 && <Section title="Expected result">{steps.map((st, i) => <Text key={st.position}>{numbered(i, st.expected)}</Text>)}</Section>}

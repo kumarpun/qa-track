@@ -2,12 +2,15 @@
 import { Fragment, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Loader2, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PRIORITIES, TYPES, AUTOMATION, CASE_STATUSES } from "@/lib/validation/testcase";
 import { bulkAction, fillCaseStatusAction } from "@/app/actions/testcases";
+import { runCaseInBrowserAction } from "@/app/actions/automation";
+import { BrowserRunOptions, useBrowserOptions } from "@/components/browser-run-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClickableRow } from "@/components/clickable-row";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NativeSelect } from "@/components/native-select";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -23,13 +26,35 @@ const SORTABLE = [
   ["suite", "Test suites"],
 ];
 
-export function CaseList({ projectId, rows, page, pages, total, params, canWrite, members }) {
+export function CaseList({ projectId, rows, page, pages, total, params, canWrite, canRunBrowser, members }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const [selected, setSelected] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [browserOpts, updateBrowserOpts] = useBrowserOptions();
+  const [active, setActive] = useState(null); // { key, done, total }
+  const [running, startRun] = useTransition();
+
+  /** Runs the given cases in the browser one after another (one run at a time). */
+  const runInBrowser = (key, ids) =>
+    startRun(async () => {
+      let passed = 0;
+      const problems = [];
+      for (const [i, id] of ids.entries()) {
+        setActive({ key, done: i, total: ids.length });
+        const res = await runCaseInBrowserAction(projectId, id, browserOpts);
+        if (!res.ok) problems.push(res.error);
+        else if (res.data.status === "PASSED") passed++;
+        else problems.push(res.data.failedAt ?? "failed");
+      }
+      setActive(null);
+      const failed = ids.length - passed;
+      if (failed === 0) toast.success(ids.length === 1 ? "Case passed." : `All ${passed} cases passed.`);
+      else toast.error(`${passed} of ${ids.length} passed. ${failed} not passed: ${problems.slice(0, 2).join(" | ")}`);
+      router.refresh();
+    });
 
   const go = (patch) => {
     const next = new URLSearchParams(sp.toString());
@@ -89,10 +114,26 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
           {pick("type", opts(TYPES))}
           {pick("automation", opts(AUTOMATION))}
           {pick("assign", [{ value: "__none", label: "Unassigned" }, ...members.map((m) => ({ value: m.id, label: m.name }))])}
+          {canRunBrowser && (
+            <Button size="sm" variant="outline" disabled={pending || running} onClick={() => runInBrowser("selected", [...selected])}>
+              {active?.key === "selected" ? <Loader2 className="animate-spin" /> : <Play />}
+              {active?.key === "selected" ? `Running ${active.done + 1}/${active.total}…` : "Run selected in browser"}
+            </Button>
+          )}
           <Button size="icon-sm" variant="outline" aria-label="Delete selected" title="Delete selected" disabled={pending} onClick={() => setConfirmDelete(true)}>
             <Trash2 className="text-destructive" />
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+        </div>
+      )}
+
+      {canRunBrowser && (
+        <div className="flex items-center justify-end gap-2">
+          <BrowserRunOptions opts={browserOpts} update={updateBrowserOpts} disabled={running} />
+          <Button variant="outline" size="sm" disabled={running || rows.length === 0} onClick={() => runInBrowser("all", rows.map((r) => r.id))}>
+            {active?.key === "all" ? <Loader2 className="animate-spin" /> : <Play />}
+            {active?.key === "all" ? `Running ${active.done + 1}/${active.total}…` : "Run all in browser"}
+          </Button>
         </div>
       )}
 
@@ -108,7 +149,7 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
               {SORTABLE.map(([col, text]) => (
                 <Fragment key={col}>
                 <TableHead>
-                  <button type="button" className="inline-flex items-center gap-1 font-medium hover:text-foreground" onClick={() => sortBy(col)}>
+                  <button type="button" className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wider hover:text-foreground" onClick={() => sortBy(col)}>
                     {text}
                     {params.sort === col && (params.dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                   </button>
@@ -116,13 +157,12 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                 {col === "title" && <TableHead className="w-40">Results</TableHead>}
                 </Fragment>
               ))}
-              <TableHead>Assignee</TableHead>
-              <TableHead>Tags</TableHead>
+              {canRunBrowser && <TableHead className="w-10"><span className="sr-only">Run in browser</span></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id} data-state={selected.has(r.id) ? "selected" : undefined}>
+              <ClickableRow key={r.id} href={`/test-cases/${r.id}`} data-state={selected.has(r.id) ? "selected" : undefined}>
                 {canWrite && (
                   <TableCell>
                     <input type="checkbox" aria-label={`Select ${r.code}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
@@ -142,14 +182,17 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                 <TableCell className="text-sm">
                   {r.suites.length ? r.suites.join(", ") : <span className="text-muted-foreground">—</span>}
                 </TableCell>
-                <TableCell className="text-sm">{r.assignee_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {r.tags.slice(0, 3).map((t) => <Badge key={t} variant="outline">{t}</Badge>)}
-                    {r.tags.length > 3 && <span className="text-xs text-muted-foreground">+{r.tags.length - 3}</span>}
-                  </div>
-                </TableCell>
-              </TableRow>
+                {canRunBrowser && (
+                  <TableCell className="p-0">
+                    <Button variant="ghost" size="icon-sm" disabled={running}
+                      aria-label={`Run ${r.code} in browser`}
+                      title={active?.key === r.id ? "Running…" : "Run in browser"}
+                      onClick={() => runInBrowser(r.id, [r.id])}>
+                      {active?.key === r.id ? <Loader2 className="animate-spin" /> : <Play />}
+                    </Button>
+                  </TableCell>
+                )}
+              </ClickableRow>
             ))}
           </TableBody>
         </Table>
@@ -167,7 +210,7 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`Delete ${selected.size} test case(s) permanently?`}
-        description="This cannot be undone. The selected test cases, their steps and suite membership are removed from the database. If any of them is part of a test run, nothing is deleted."
+        description="This cannot be undone. The selected test cases, their steps and suite membership are removed from the database. If any of them is in a test run that is not completed, nothing is deleted."
         confirmLabel="Delete"
         onConfirm={() => runBulk("delete")}
       />

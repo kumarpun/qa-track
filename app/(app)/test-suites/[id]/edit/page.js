@@ -12,7 +12,7 @@ export default async function EditSuitePage({ params }) {
   if (!projectId) notFound();
   const ctx = await projectCtxById(projectId, "suite.write");
   const suite = await getSuite(ctx, id).catch(() => null);
-  if (!suite || suite.archived_at) notFound();
+  if (!suite) notFound();
 
   // A suite may not be nested under itself or any of its descendants.
   const all = await listSuites(ctx);

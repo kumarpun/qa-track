@@ -5,10 +5,13 @@ import { listSuites } from "@/lib/server/services/suites";
 import { can } from "@/lib/permissions";
 import { PageHeader, EmptyState } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
+import { ClickableRow } from "@/components/clickable-row";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { CASE_STATUS_LABELS } from "../test-cases/labels";
 import { SuiteStatusSelect } from "./suite-status-select";
+import { RunAllSuites, RunSuiteIcon, SuiteRunProvider } from "./suite-browser-runs";
+import { browserRunsEnabled } from "@/lib/server/automation/config";
 
 /** Depth-first flatten so nested suites render as indented rows. */
 function flatten(byParent, parent = null, depth = 0) {
@@ -20,16 +23,22 @@ export default async function TestSuitesPage() {
   if (!ctx) return <><PageHeader title="Test Suites" /><EmptyState icon={Layers} title="No project selected" description="Create or join a project first." /></>;
   const canWrite = can(ctx.role, "suite.write");
   const canSetStatus = can(ctx.role, "testcase.write");
+  const canRunBrowser = canSetStatus && browserRunsEnabled();
   const suites = await listSuites(ctx);
   const byParent = new Map();
   for (const s of suites) byParent.set(s.parent_id, [...(byParent.get(s.parent_id) ?? []), s]);
 
   return (
-    <>
+    <SuiteRunProvider projectId={ctx.project.id}>
       <PageHeader
         title="Test Suites"
         description={`${suites.length} ${suites.length === 1 ? "suite" : "suites"} in ${ctx.project.key}`}
-        actions={canWrite && <Link href="/test-suites/new" className={buttonVariants({ size: "sm" })}><Plus /> New suite</Link>}
+        actions={
+          <>
+            {canRunBrowser && <RunAllSuites suiteIds={suites.filter((s) => s.case_count > 0).map((s) => s.id)} />}
+            {canWrite && <Link href="/test-suites/new" className={buttonVariants({ size: "sm" })}><Plus /> New suite</Link>}
+          </>
+        }
       />
       {suites.length === 0 ? (
         <EmptyState
@@ -39,19 +48,19 @@ export default async function TestSuitesPage() {
           action={canWrite ? <Link href="/test-suites/new" className={buttonVariants({ size: "sm" })}><Plus /> New suite</Link> : null}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <div className="w-full lg:w-[80%] overflow-hidden rounded-lg border">
           <Table className="[&_td]:border-r [&_th]:border-r [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead className="w-56">Name</TableHead>
                 <TableHead className="w-40">Results</TableHead>
                 <TableHead className="w-24">Cases</TableHead>
-                <TableHead>Feature</TableHead>
+                {canRunBrowser && <TableHead className="w-12"><span className="sr-only">Run</span></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {flatten(byParent).map((s) => (
-                <TableRow key={s.id}>
+                <ClickableRow key={s.id} href={`/test-suites/${s.id}`}>
                   <TableCell style={{ paddingLeft: `${0.75 + s.depth * 1.25}rem` }}>
                     <span className="inline-flex items-center gap-2">
                       <Layers className="size-4 text-muted-foreground" aria-hidden />
@@ -64,13 +73,13 @@ export default async function TestSuitesPage() {
                       : <div className="px-2.5 py-2"><StatusBadge status={s.status} label={CASE_STATUS_LABELS[s.status]} /></div>}
                   </TableCell>
                   <TableCell className="text-sm">{s.case_count}</TableCell>
-                  <TableCell className="text-sm">{s.feature ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                </TableRow>
+                  {canRunBrowser && <TableCell className="p-1 text-center"><RunSuiteIcon suiteId={s.id} suiteName={s.name} caseCount={s.case_count} /></TableCell>}
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
-    </>
+    </SuiteRunProvider>
   );
 }

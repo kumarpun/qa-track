@@ -21,7 +21,7 @@ export default async function ProjectPage({ params }) {
   }
   const { project, role } = ctx;
   const canManage = can(role, "project.manage");
-  const [members, users] = await Promise.all([listMembers(project.id), canManage ? listActiveUsers() : []]);
+  const [members, users] = await Promise.all([listMembers(project.id), canManage ? listActiveUsers(user.org_id) : []]);
   return (
     <>
       <PageHeader

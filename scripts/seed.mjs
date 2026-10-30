@@ -18,6 +18,13 @@ const conn = await mysql.createConnection({
 const PASSWORD = "Passw0rd!demo";
 const hash = await bcrypt.hash(PASSWORD, 12);
 
+const [[org]] = await conn.query("SELECT id FROM organizations WHERE name = 'Default'");
+let orgId = org?.id;
+if (!orgId) {
+  orgId = randomUUID();
+  await conn.query("INSERT INTO organizations (id, name) VALUES (?,?)", [orgId, "Default"]);
+}
+
 const users = [
   ["admin@example.com", "Ada Admin", "ADMIN"],
   ["lead@example.com", "Liam Lead", "QA_LEAD"],
@@ -30,7 +37,7 @@ for (const [email, name, role] of users) {
   const [[row]] = await conn.query("SELECT id FROM users WHERE email = ?", [email]);
   if (row) { ids[email] = row.id; continue; }
   ids[email] = randomUUID();
-  await conn.query("INSERT INTO users (id, email, name, password_hash, role) VALUES (?,?,?,?,?)", [ids[email], email, name, hash, role]);
+  await conn.query("INSERT INTO users (id, org_id, email, name, password_hash, role) VALUES (?,?,?,?,?,?)", [ids[email], orgId, email, name, hash, role]);
 }
 
 const projects = [
@@ -40,10 +47,10 @@ const projects = [
     { "qa1@example.com": "QA_ENGINEER" }],
 ];
 for (const [key, name, description, owner, members] of projects) {
-  const [[exists]] = await conn.query("SELECT id FROM projects WHERE `key` = ?", [key]);
+  const [[exists]] = await conn.query("SELECT id FROM projects WHERE org_id = ? AND `key` = ?", [orgId, key]);
   if (exists) continue;
   const pid = randomUUID();
-  await conn.query("INSERT INTO projects (id, `key`, name, description, owner_id) VALUES (?,?,?,?,?)", [pid, key, name, description, ids[owner]]);
+  await conn.query("INSERT INTO projects (id, org_id, `key`, name, description, owner_id) VALUES (?,?,?,?,?,?)", [pid, orgId, key, name, description, ids[owner]]);
   const all = { [owner]: "QA_LEAD", ...members };
   for (const [email, role] of Object.entries(all))
     await conn.query("INSERT INTO project_members (id, project_id, user_id, role) VALUES (?,?,?,?)", [randomUUID(), pid, ids[email], role]);

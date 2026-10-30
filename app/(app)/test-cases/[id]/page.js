@@ -4,13 +4,14 @@ import { z } from "zod";
 import { Pencil } from "lucide-react";
 import { projectCtxById } from "@/lib/server/page";
 import { LocalTime } from "@/components/local-time";
-import { getCase, getCaseProjectId, listAutoRuns, listCaseComments, listCaseResults } from "@/lib/server/services/testcases";
+import { getCase, getCaseProjectId, listCaseOptions, listAutoRuns, listCaseComments, listCaseResults } from "@/lib/server/services/testcases";
 import { listSuites, suitesForCase } from "@/lib/server/services/suites";
 import { can } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { label, CASE_STATUS_LABELS, PRIORITY_TONE } from "../labels";
 import { CaseActions } from "./case-actions";
+import { LinkedText } from "../linked-text";
 import { SampleFormat } from "../sample-format";
 import { StatusSelect } from "./status-select";
 import { SuitePicker } from "./suite-picker";
@@ -18,6 +19,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { browserRunsEnabled } from "@/lib/server/automation/config";
 import { RunInBrowser } from "./run-in-browser";
 import { ResultHistory } from "./result-history";
+import { AutoRunCard } from "./auto-run-card";
 import { mentionableMembers } from "@/lib/server/services/notifications";
 import { CommentList } from "@/components/comments/comment-list";
 import { toThreads } from "@/components/comments/format";
@@ -55,7 +57,7 @@ export default async function TestCaseDetailPage({ params }) {
   const ctx = await projectCtxById(projectId, "project.read");
   const tc = await getCase(ctx, id).catch(() => null);
   if (!tc) notFound();
-  const [results, autoRuns, comments] = await Promise.all([listCaseResults(ctx, id), listAutoRuns(ctx, id), listCaseComments(ctx, id)]);
+  const [results, autoRuns, comments, linkable] = await Promise.all([listCaseResults(ctx, id), listAutoRuns(ctx, id), listCaseComments(ctx, id), listCaseOptions(ctx)]);
   const canWrite = can(ctx.role, "testcase.write");
   const canRunBrowser = canWrite && browserRunsEnabled();
   const canSuite = can(ctx.role, "suite.write");
@@ -86,7 +88,7 @@ export default async function TestCaseDetailPage({ params }) {
           {tc.preconditions && <Section title="Preconditions"><Text>{tc.preconditions}</Text></Section>}
           <Section title="Test steps">
             <div className="space-y-1.5">
-              {steps.map((s, i) => <div key={i} data-testid="step"><Text>{numbered(steps, i, s.action)}</Text></div>)}
+              {steps.map((s, i) => <div key={i} data-testid="step"><LinkedText cases={linkable}>{numbered(steps, i, s.action)}</LinkedText></div>)}
             </div>
           </Section>
           {withData.length > 0 && (
@@ -103,12 +105,16 @@ export default async function TestCaseDetailPage({ params }) {
             <Section title="Browser runs">
               <ul className="space-y-4" data-testid="auto-runs">
                 {autoRuns.slice(0, 1).map((r) => ( // newest first; older runs stay in Result history
-                  <li key={r.id} className="space-y-2 rounded-lg border p-3 text-sm" data-testid="auto-run">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <StatusBadge status={r.status} label={CASE_STATUS_LABELS[r.status]} />
-                      <span className="text-muted-foreground"><LocalTime value={r.started_at} /></span>
-                      <span className="ml-auto text-muted-foreground">{r.triggered_by_name}</span>
-                    </div>
+                  <AutoRunCard
+                    key={r.id}
+                    header={
+                      <>
+                        <StatusBadge status={r.status} label={CASE_STATUS_LABELS[r.status]} />
+                        <span className="text-muted-foreground"><LocalTime value={r.started_at} /></span>
+                        <span className="ml-auto text-muted-foreground">{r.triggered_by_name}</span>
+                      </>
+                    }
+                  >
                     <ol className="space-y-1">
                       {r.log.map((l) => (
                         <li key={l.n} className="flex gap-2">
@@ -121,7 +127,7 @@ export default async function TestCaseDetailPage({ params }) {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={`/api/auto-runs/${r.id}/screenshot`} alt="Screenshot at the failed step" className="max-h-80 rounded border" />
                     )}
-                  </li>
+                  </AutoRunCard>
                 ))}
               </ul>
             </Section>
