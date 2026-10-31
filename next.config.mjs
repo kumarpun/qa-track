@@ -7,8 +7,9 @@ const nextConfig = {
   poweredByHeader: false,
   // Browser runs drive a real Chromium through Playwright; it must load from node_modules, not be bundled.
   serverExternalPackages: ["@playwright/test", "playwright", "playwright-core", "@sparticuz/chromium"],
-  // The Chromium binary is read from disk at runtime, so file tracing must ship it with the functions that run browsers.
-  outputFileTracingIncludes: { "/**": ["./node_modules/@sparticuz/chromium/bin/**"] },
+  // Read from disk at runtime (not found by static tracing), so ship them with every function: the Chromium binary
+  // and the JSON files playwright-core requires dynamically ("Cannot find module .../browsers.json").
+  outputFileTracingIncludes: { "/**": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/playwright-core/*.json"] },
   async headers() {
     return [{
       source: "/(.*)",

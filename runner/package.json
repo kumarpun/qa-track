@@ -1,0 +1,22 @@
+{
+  "name": "testtrack-runner",
+  "version": "0.1.0",
+  "description": "Runs TestTrack \"Run in browser\" steps in Chromium on your own machine.",
+  "type": "module",
+  "bin": {
+    "testtrack-runner": "dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  },
+  "license": "UNLICENSED",
+  "scripts": {
+    "prepublishOnly": "node build.mjs"
+  }
+}
