@@ -25,6 +25,9 @@ import { CommentList } from "@/components/comments/comment-list";
 import { toThreads } from "@/components/comments/format";
 import { addCaseCommentAction, updateCaseCommentAction, deleteCaseCommentAction } from "@/app/actions/testcases";
 
+// Browser runs on Vercel launch Chromium inside the server action; give it room (plan caps apply).
+export const maxDuration = 60;
+
 
 function Meta({ name, children }) {
   return (

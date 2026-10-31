@@ -15,6 +15,9 @@ import { SuiteCases } from "./suite-cases";
 import { RunSuiteInBrowser } from "./run-suite-in-browser";
 import { browserRunsEnabled } from "@/lib/server/automation/config";
 
+// Browser runs on Vercel launch Chromium inside the server action; give it room (plan caps apply).
+export const maxDuration = 60;
+
 export default async function SuiteDetailPage({ params }) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();

@@ -18,6 +18,9 @@ import { addCommentAction, updateCommentAction, deleteCommentAction } from "@/ap
 import { ResultStatusSelect } from "./result-state";
 import { RunCaseInBrowser } from "./run-case-in-browser";
 
+// Browser runs on Vercel launch Chromium inside the server action; give it room (plan caps apply).
+export const maxDuration = 60;
+
 const uuid = z.string().uuid();
 
 const Text = ({ children }) => <p className="whitespace-pre-wrap text-sm leading-relaxed">{children}</p>;

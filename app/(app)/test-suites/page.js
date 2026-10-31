@@ -13,6 +13,9 @@ import { SuiteStatusSelect } from "./suite-status-select";
 import { RunAllSuites, RunSuiteIcon, SuiteRunProvider } from "./suite-browser-runs";
 import { browserRunsEnabled } from "@/lib/server/automation/config";
 
+// Browser runs on Vercel launch Chromium inside the server action; give it room (plan caps apply).
+export const maxDuration = 60;
+
 /** Depth-first flatten so nested suites render as indented rows. */
 function flatten(byParent, parent = null, depth = 0) {
   return (byParent.get(parent) ?? []).flatMap((s) => [{ ...s, depth }, ...flatten(byParent, s.id, depth + 1)]);

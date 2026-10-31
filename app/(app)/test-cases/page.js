@@ -11,6 +11,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Filters } from "./filters";
 import { CaseList } from "./case-list";
 
+// Browser runs on Vercel launch Chromium inside the server action; give it room (plan caps apply).
+export const maxDuration = 60;
+
 export default async function TestCasesPage({ searchParams }) {
   const ctx = await activeProjectCtx();
   if (!ctx) return <><PageHeader title="Test Cases" /><EmptyState icon={FileCheck2} title="No project selected" description="Create or join a project first." /></>;

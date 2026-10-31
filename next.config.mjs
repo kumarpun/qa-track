@@ -6,7 +6,9 @@ const nextConfig = {
   // Cache Components would force a Suspense boundary around every authenticated page.
   poweredByHeader: false,
   // Browser runs drive a real Chromium through Playwright; it must load from node_modules, not be bundled.
-  serverExternalPackages: ["@playwright/test", "playwright", "playwright-core"],
+  serverExternalPackages: ["@playwright/test", "playwright", "playwright-core", "@sparticuz/chromium"],
+  // The Chromium binary is read from disk at runtime, so file tracing must ship it with the functions that run browsers.
+  outputFileTracingIncludes: { "/**": ["./node_modules/@sparticuz/chromium/bin/**"] },
   async headers() {
     return [{
       source: "/(.*)",
