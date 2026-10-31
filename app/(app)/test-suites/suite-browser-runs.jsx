@@ -3,7 +3,8 @@ import { createContext, useContext, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
-import { runCaseInBrowserAction, suiteCaseIdsAction } from "@/app/actions/automation";
+import { suiteCaseIdsAction } from "@/app/actions/automation";
+import { runCaseInBrowser } from "@/lib/client/browser-run";
 import { Button } from "@/components/ui/button";
 import { BrowserRunOptions, useBrowserOptions } from "@/components/browser-run-options";
 
@@ -27,7 +28,7 @@ export function SuiteRunProvider({ projectId, children }) {
       const problems = [];
       for (const [i, id] of caseIds.entries()) {
         setActive({ key, done: i, total: caseIds.length });
-        const res = await runCaseInBrowserAction(projectId, id, opts);
+        const res = await runCaseInBrowser(projectId, id, opts);
         if (!res.ok) problems.push(res.error);
         else if (res.data.status === "PASSED") passed++;
         else problems.push(res.data.failedAt ?? "failed");

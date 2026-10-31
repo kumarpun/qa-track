@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Loader2, Play, Trash2 } 
 import { toast } from "sonner";
 import { PRIORITIES, TYPES, AUTOMATION, CASE_STATUSES } from "@/lib/validation/testcase";
 import { bulkAction, fillCaseStatusAction } from "@/app/actions/testcases";
-import { runCaseInBrowserAction } from "@/app/actions/automation";
+import { runCaseInBrowser } from "@/lib/client/browser-run";
 import { BrowserRunOptions, useBrowserOptions } from "@/components/browser-run-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
       const problems = [];
       for (const [i, id] of ids.entries()) {
         setActive({ key, done: i, total: ids.length });
-        const res = await runCaseInBrowserAction(projectId, id, browserOpts);
+        const res = await runCaseInBrowser(projectId, id, browserOpts);
         if (!res.ok) problems.push(res.error);
         else if (res.data.status === "PASSED") passed++;
         else problems.push(res.data.failedAt ?? "failed");

@@ -3,7 +3,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
-import { runRunCaseInBrowserAction } from "@/app/actions/automation";
+import { runRunCaseInBrowser } from "@/lib/client/browser-run";
 import { Button } from "@/components/ui/button";
 import { BrowserRunOptions, useBrowserOptions } from "@/components/browser-run-options";
 
@@ -14,7 +14,7 @@ export function RunCaseInBrowser({ projectId, runCaseId }) {
   const [opts, update] = useBrowserOptions();
   const go = () =>
     start(async () => {
-      const res = await runRunCaseInBrowserAction(projectId, runCaseId, opts);
+      const res = await runRunCaseInBrowser(projectId, runCaseId, opts);
       if (!res.ok) return toast.error(res.error);
       if (res.data.status === "PASSED") toast.success("Browser run passed. Result recorded as Passed.");
       else toast.error(`Browser run failed: ${res.data.failedAt ?? "see comment"}. Result recorded as Failed.`);
