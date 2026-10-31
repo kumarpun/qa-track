@@ -45,16 +45,15 @@ export default async function DocumentationPage() {
         <Card>
           <CardHeader><CardTitle>Run in a visible browser on your own machine</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p>By default the hosted site runs tests itself in a headless browser (public websites only, no window). To watch a real Chromium window, or to test sites only you can reach (localhost, VPN, staging), run the small runner on your computer. You only need <a className="underline" href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js</a> (v20+); there is nothing to clone.</p>
+            <p>Pick where a run happens with the <em>Hosted / My machine</em> dropdown next to Run in browser. <strong>Hosted</strong> runs on the server in a headless browser (public websites only, no window, nothing to install). <strong>My machine</strong> uses the runner below. To watch a real Chromium window, or to test sites only you can reach (localhost, VPN, staging), run the small runner on your computer. You only need <a className="underline" href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js</a> (v20+); there is nothing to clone.</p>
             <Block>{`npx testtrack-runner --origin https://your-app.example.com`}</Block>
-            <p>The first run downloads Chromium once. Keep the terminal open, then press <strong>Run in browser</strong> on any case, suite or run case. Use the <em>Headless / Browser</em> dropdown to hide or show the window.</p>
+            <p>The first run downloads Chromium once. Keep the terminal open, then press <strong>Run in browser</strong> on any case, suite or run case. Choose <em>My machine</em>, then use the <em>Headless / Browser</em> dropdown to hide or show the window.</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
               <li>Chrome may ask once to allow the site to reach apps on this device: choose Allow.</li>
               <li>“Local runner not reachable” means the runner is not running (or uses another <Code>--port</Code>).</li>
               <li>Only the URL you pass to <Code>--origin</Code> can drive your browser; the runner listens on 127.0.0.1 only.</li>
               <li>Add <Code>--allow-private</Code> to let tests visit localhost and private-network URLs.</li>
               <li>Failure screenshots are not stored for runs done on your machine; the step log is.</li>
-              <li>Admins: the server must be set to <Code>BROWSER_RUN_MODE=local</Code> to send runs to this runner.</li>
             </ul>
           </CardContent>
         </Card>

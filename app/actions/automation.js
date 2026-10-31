@@ -7,7 +7,7 @@ import { suiteCaseIds } from "@/lib/server/services/suites";
 import { runCaseInBrowser, runRunCaseInBrowser, finishCaseRun, finishRunCaseRun } from "@/lib/server/services/automation";
 
 const uuidSchema = z.string().uuid();
-const optionsSchema = z.object({ headless: z.boolean() }).partial().default({});
+const optionsSchema = z.object({ headless: z.boolean(), where: z.enum(["hosted", "local"]) }).partial().default({});
 
 /** Opens a real browser window on the server machine and runs the case's steps; sets the case to Passed/Failed. */
 export async function runCaseInBrowserAction(projectId, caseId, options) {
