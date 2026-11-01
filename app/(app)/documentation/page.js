@@ -26,7 +26,7 @@ export default async function DocumentationPage() {
     <>
       <PageHeader title="Documentation" description="How to write test cases that are clear for people and, when you want, runnable in a browser." />
       <div className="max-w-4xl space-y-6">
-        <Card id="run-on-my-machine" className="scroll-mt-6 target:ring-2 target:ring-primary target:bg-primary/5">
+        <Card id="run-on-my-machine" className="scroll-mt-28 target:ring-2 target:ring-primary target:bg-primary/5">
           <CardHeader><CardTitle>Run in a visible browser on your own machine</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p>Next to <em>Run in browser</em> there is a dropdown with two choices:</p>

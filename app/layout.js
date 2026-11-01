@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { RunnerUnreachableDialog } from "@/components/runner-unreachable-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors closeButton />
+          <RunnerUnreachableDialog />
         </ThemeProvider>
       </body>
     </html>

@@ -1,5 +1,7 @@
 "use client";
 import { useMemo, useSyncExternalStore } from "react";
+import { Cloud, Eye, EyeOff, Laptop } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { NativeSelect } from "@/components/native-select";
 
 const KEY = "qa.browserRunOptions";
@@ -21,17 +23,28 @@ export function useBrowserOptions() {
   return [opts, update];
 }
 
+/** A NativeSelect with a leading icon. */
+function IconSelect({ icon: Icon, className, children, ...props }) {
+  return (
+    <div className="relative inline-flex">
+      <Icon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <NativeSelect className={cn("w-auto field-sizing-content pl-8 pr-1.5", className)} {...props}>{children}</NativeSelect>
+    </div>
+  );
+}
+
 export function BrowserRunOptions({ opts, update, disabled }) {
+  const local = opts.where === "local";
   return (
     <>
-      <NativeSelect aria-label="Run where" title="Hosted runs on the server (headless, public sites only). My machine uses the local runner (npx testtrack-runner) so you can watch the browser or reach private sites." className="w-auto" value={opts.where} disabled={disabled} onChange={(e) => update({ where: e.target.value })}>
+      <IconSelect icon={local ? Laptop : Cloud} aria-label="Run where" title="Hosted runs on the server (headless, public sites only). My machine uses the local runner (npx testtrack-runner) so you can watch the browser or reach private sites." value={opts.where} disabled={disabled} onChange={(e) => update({ where: e.target.value })}>
         <option value="hosted">Hosted</option>
         <option value="local">My machine</option>
-      </NativeSelect>
-      <NativeSelect aria-label="Window mode" title="Headless runs in the background; Browser opens a visible window (My machine only). Applies to every Run in browser button." className="w-auto" value={opts.headless ? "headless" : "visible"} disabled={disabled} onChange={(e) => update({ headless: e.target.value === "headless" })}>
+      </IconSelect>
+      <IconSelect icon={opts.headless ? EyeOff : Eye} aria-label="Window mode" title="Headless runs in the background; Browser opens a visible window (My machine only). Applies to every Run in browser button." value={opts.headless ? "headless" : "visible"} disabled={disabled} onChange={(e) => update({ headless: e.target.value === "headless" })}>
         <option value="headless">Headless</option>
         <option value="visible">Browser</option>
-      </NativeSelect>
+      </IconSelect>
     </>
   );
 }

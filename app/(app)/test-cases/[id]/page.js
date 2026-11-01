@@ -72,11 +72,11 @@ export default async function TestCaseDetailPage({ params }) {
   return (
     <>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="-mt-4 grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight">{tc.title}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight">{tc.title}</h1>
             </div>
             {canWrite && (
               <div className="flex items-center gap-2">

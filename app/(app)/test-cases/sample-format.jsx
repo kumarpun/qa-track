@@ -28,7 +28,7 @@ export function SampleFormat({ className = "" }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full border border-ring/50 bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground transition-colors hover:bg-ring/20 ${className}`}
       >
         <FileText className="size-3" /> Test case sample
       </button>
