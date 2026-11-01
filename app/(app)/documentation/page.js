@@ -47,6 +47,8 @@ export default async function DocumentationPage() {
           <CardContent className="space-y-3 text-sm">
             <p>Pick where a run happens with the <em>Hosted / My machine</em> dropdown next to Run in browser. <strong>Hosted</strong> runs on the server in a headless browser (public websites only, no window, nothing to install). <strong>My machine</strong> uses the runner below. To watch a real Chromium window, or to test sites only you can reach (localhost, VPN, staging), run the small runner on your computer. You only need <a className="underline" href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js</a> (v20+); there is nothing to clone.</p>
             <Block>{`npx testtrack-runner --origin https://your-app.example.com`}</Block>
+            <p>Running from a clone of this repo instead? Allow the hosted site through an environment variable (comma separate several origins):</p>
+            <Block>{`RUNNER_ALLOWED_ORIGINS=https://qa-track-beta.vercel.app npm run runner`}</Block>
             <p>The first run downloads Chromium once. Keep the terminal open, then press <strong>Run in browser</strong> on any case, suite or run case. Choose <em>My machine</em>, then use the <em>Headless / Browser</em> dropdown to hide or show the window.</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
               <li>Chrome may ask once to allow the site to reach apps on this device: choose Allow.</li>
