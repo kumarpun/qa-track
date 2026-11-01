@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
-import { runCaseInBrowser } from "@/lib/client/browser-run";
+import { runCaseInBrowser, showRunError } from "@/lib/client/browser-run";
 import { Button } from "@/components/ui/button";
 import { BrowserRunOptions, useBrowserOptions } from "@/components/browser-run-options";
 
@@ -26,7 +26,7 @@ export function RunSuiteInBrowser({ projectId, caseIds }) {
       }
       const failed = caseIds.length - passed;
       if (failed === 0) toast.success(`All ${passed} cases passed.`);
-      else toast.error(`${passed} of ${caseIds.length} passed. ${failed} not passed: ${problems.slice(0, 2).join(" | ")}`);
+      else showRunError(`${passed} of ${caseIds.length} passed. ${failed} not passed: ${problems.slice(0, 2).join(" | ")}`);
       router.refresh();
     });
   return (

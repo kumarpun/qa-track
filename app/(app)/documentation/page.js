@@ -26,6 +26,27 @@ export default async function DocumentationPage() {
     <>
       <PageHeader title="Documentation" description="How to write test cases that are clear for people and, when you want, runnable in a browser." />
       <div className="max-w-4xl space-y-6">
+        <Card id="run-on-my-machine" className="scroll-mt-6 target:ring-2 target:ring-primary target:bg-primary/5">
+          <CardHeader><CardTitle>Run in a visible browser on your own machine</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p>Next to <em>Run in browser</em> there is a dropdown with two choices:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li><strong>Hosted</strong>: the test runs on our server. You see no window and install nothing. It can only open public websites.</li>
+              <li><strong>My machine</strong>: the test runs on your own computer. You can watch the browser window, and you can test sites only you can open, like localhost, VPN or staging sites.</li>
+            </ul>
+            <p>To use <em>My machine</em>, start the small runner on your computer with the command below. You only need <a className="underline" href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js</a> (version 20 or newer). There is nothing else to download or set up.</p>
+            <Block>{`npx testtrack-runner --origin https://qa-track-beta.vercel.app`}</Block>
+            <p>The first run downloads Chromium once. Keep the terminal open, then press <strong>Run in browser</strong> on any case, suite or run case. Choose <em>My machine</em>, then use the <em>Headless / Browser</em> dropdown to hide or show the window.</p>
+            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>Chrome may ask once to allow the site to reach apps on this device: choose Allow.</li>
+              <li>“Local runner not reachable” means the runner is not running (or uses another <Code>--port</Code>).</li>
+              <li>Only the URL you pass to <Code>--origin</Code> can drive your browser; the runner listens on 127.0.0.1 only.</li>
+              <li>Add <Code>--allow-private</Code> to let tests visit localhost and private-network URLs.</li>
+              <li>Failure screenshots are not stored for runs done on your machine; the step log is.</li>
+            </ul>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle>Keywords for “Run in browser”</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -39,24 +60,6 @@ export default async function DocumentationPage() {
               </TableBody>
             </Table>
             <p className="text-muted-foreground">Quote text that contains punctuation: <Code>{"Click 'Log in'"}</Code>. Browser runs only visit public web pages, and results are saved as Pass/Fail with a step log and a screenshot on failure.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Run in a visible browser on your own machine</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p>Pick where a run happens with the <em>Hosted / My machine</em> dropdown next to Run in browser. <strong>Hosted</strong> runs on the server in a headless browser (public websites only, no window, nothing to install). <strong>My machine</strong> uses the runner below. To watch a real Chromium window, or to test sites only you can reach (localhost, VPN, staging), run the small runner on your computer. You only need <a className="underline" href="https://nodejs.org" target="_blank" rel="noreferrer">Node.js</a> (v20+); there is nothing to clone.</p>
-            <Block>{`npx testtrack-runner --origin https://your-app.example.com`}</Block>
-            <p>Running from a clone of this repo instead? Allow the hosted site through an environment variable (comma separate several origins):</p>
-            <Block>{`RUNNER_ALLOWED_ORIGINS=https://qa-track-beta.vercel.app npm run runner`}</Block>
-            <p>The first run downloads Chromium once. Keep the terminal open, then press <strong>Run in browser</strong> on any case, suite or run case. Choose <em>My machine</em>, then use the <em>Headless / Browser</em> dropdown to hide or show the window.</p>
-            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Chrome may ask once to allow the site to reach apps on this device: choose Allow.</li>
-              <li>“Local runner not reachable” means the runner is not running (or uses another <Code>--port</Code>).</li>
-              <li>Only the URL you pass to <Code>--origin</Code> can drive your browser; the runner listens on 127.0.0.1 only.</li>
-              <li>Add <Code>--allow-private</Code> to let tests visit localhost and private-network URLs.</li>
-              <li>Failure screenshots are not stored for runs done on your machine; the step log is.</li>
-            </ul>
           </CardContent>
         </Card>
 
