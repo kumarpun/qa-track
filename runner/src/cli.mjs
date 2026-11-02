@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { startRunner } from "../../scripts/runner-server.mjs";
 
 const HELP = `testtrack-runner: run TestTrack browser tests on this machine
@@ -29,7 +30,8 @@ if (!origins.filter(Boolean).length || !Number.isInteger(port)) { console.log(HE
 
 if (!existsSync(chromium.executablePath())) {
   console.log("First run: downloading Chromium (one time, ~150MB)...");
-  const cli = createRequire(import.meta.url).resolve("playwright-core/cli");
+  const pkg = createRequire(import.meta.url).resolve("playwright-core/package.json");
+  const cli = join(dirname(pkg), "cli.js");
   if (spawnSync(process.execPath, [cli, "install", "chromium"], { stdio: "inherit" }).status !== 0) {
     console.error("Could not download Chromium.");
     process.exit(1);

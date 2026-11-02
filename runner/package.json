@@ -1,6 +1,6 @@
 {
   "name": "testtrack-runner",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runs TestTrack \"Run in browser\" steps in Chromium on your own machine.",
   "type": "module",
   "bin": {
