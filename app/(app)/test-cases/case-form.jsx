@@ -3,15 +3,16 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
-import { Link2, Plus } from "lucide-react";
+import { AlignLeft, ImagePlus, Link2, Plus } from "lucide-react";
 import { PRIORITIES, TYPES, AUTOMATION } from "@/lib/validation/testcase";
 import { createCaseAction, updateCaseAction } from "@/app/actions/testcases";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/native-select";
-import { continueNumberedList, insertStepLine } from "@/lib/numbered-list";
+import { continueNumberedList, emptyEnterStepAt, emptyUploadStepAt, insertStepLine } from "@/lib/numbered-list";
 import { label } from "./labels";
 import { LabelPicker } from "./label-picker";
 import { SampleFormat, SAMPLE_STEPS } from "./sample-format";
@@ -50,6 +51,10 @@ const mergeSteps = (steps, key) => {
 };
 
 /** Tags are entered comma-separated and URLs one per line; both are normalised on submit and validated again by Zod on the server. */
+const LONG_FIELDS = ["Description", "Content", "Summary", "Notes"];
+
+const SAMPLE_IMAGE = "/samples/sample.jpg";
+
 export function CaseForm({ projectId, members, initial, caseId, suite, linkable = [] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -76,6 +81,68 @@ export function CaseForm({ projectId, members, initial, caseId, suite, linkable 
   });
   const [linking, setLinking] = useState(false);
   const [linkQuery, setLinkQuery] = useState("");
+  const [longOpen, setLongOpen] = useState(false);
+  const [longTarget, setLongTarget] = useState(null);
+  /** Opens the long-text popup; when the caret sits on an empty "Enter <field>:" step, the text fills that step. */
+  const openLong = () => {
+    const el = document.getElementById("stepAction");
+    const text = getValues("stepAction");
+    setLongTarget(emptyEnterStepAt(text, el?.selectionStart ?? text.length));
+    setLongOpen(true);
+  };
+  const [longField, setLongField] = useState("Description");
+  const [longValue, setLongValue] = useState("");
+  const [upOpen, setUpOpen] = useState(false);
+  const [upTarget, setUpTarget] = useState(null);
+  const [upField, setUpField] = useState("Image");
+  const [upFile, setUpFile] = useState(null);
+  const [upSample, setUpSample] = useState(false); // use the bundled sample image instead of a chosen file
+  const [uploading, setUploading] = useState(false);
+  /** Opens the image popup; when the caret sits on an empty "Upload <field>:" step, the image fills that step. */
+  const openUpload = () => {
+    const el = document.getElementById("stepAction");
+    const text = getValues("stepAction");
+    setUpTarget(emptyUploadStepAt(text, el?.selectionStart ?? text.length));
+    setUpOpen(true);
+  };
+  /** Stores the image on the server, then inserts "<n>. Upload <field>: <file name>"; the browser runner attaches that file to the field. */
+  const insertUpload = async () => {
+    if (!upFile && !upSample) return;
+    setUploading(true);
+    try {
+      let file = upFile;
+      if (upSample) {
+        const img = await fetch(SAMPLE_IMAGE);
+        if (!img.ok) throw new Error("Could not load the sample image");
+        file = new File([await img.blob()], "sample.jpg", { type: "image/jpeg" });
+      }
+      const body = new FormData();
+      body.set("projectId", projectId);
+      body.set("file", file);
+      const res = await fetch("/api/step-files", { method: "POST", body });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "Upload failed");
+      const el = document.getElementById("stepAction");
+      const text = getValues("stepAction");
+      let next, caret;
+      if (upTarget) {
+        const filled = `${upTarget.head} ${out.name}`;
+        next = text.slice(0, upTarget.start) + filled + text.slice(upTarget.end);
+        caret = upTarget.start + filled.length;
+      } else {
+        ({ text: next, caret } = insertStepLine(text, el?.selectionStart ?? text.length, `Upload ${upField.trim() || "Image"}: ${out.name}`));
+      }
+      setValue("stepAction", next, { shouldDirty: true, shouldValidate: true });
+      setUpOpen(false);
+      setUpFile(null);
+      setUpSample(false);
+      setTimeout(() => { setFocus("stepAction"); el?.setSelectionRange(caret, caret); }, 0);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
   const options = linkable.filter((c) => c.id !== caseId);
   const needle = linkQuery.trim().toLowerCase();
   const matches = options.filter((c) => !needle || `${c.code} ${c.title}`.toLowerCase().includes(needle)).slice(0, 50);
@@ -90,6 +157,26 @@ export function CaseForm({ projectId, members, initial, caseId, suite, linkable 
     setValue("stepAction", next, { shouldDirty: true, shouldValidate: true });
     setLinking(false);
     setLinkQuery("");
+    setTimeout(() => { setFocus("stepAction"); el?.setSelectionRange(caret, caret); }, 0);
+  };
+  /** Inserts "<n>. Enter <field>: \"\"\" ... \"\"\"": a fenced block, so paragraphs stay one step and read as a long value. */
+  const insertLong = () => {
+    const value = longValue.trim();
+    if (!value) return;
+    const el = document.getElementById("stepAction");
+    const text = getValues("stepAction");
+    let next, caret;
+    if (longTarget) {
+      // Fill the step the user was on: keep its own "Enter <field>:" wording.
+      const fenced = `${longTarget.head} """\n${value}\n"""`;
+      next = text.slice(0, longTarget.start) + fenced + text.slice(longTarget.end);
+      caret = longTarget.start + fenced.length;
+    } else {
+      ({ text: next, caret } = insertStepLine(text, el?.selectionStart ?? text.length, `Enter ${longField.trim()}: """\n${value}\n"""`));
+    }
+    setValue("stepAction", next, { shouldDirty: true, shouldValidate: true });
+    setLongOpen(false);
+    setLongValue("");
     setTimeout(() => { setFocus("stepAction"); el?.setSelectionRange(caret, caret); }, 0);
   };
   const onSubmit = ({ tagsText, defectUrlsText, assigneeId, stepAction, stepData, stepExpected, ...v }) =>
@@ -164,8 +251,9 @@ export function CaseForm({ projectId, members, initial, caseId, suite, linkable 
             <Plus className="size-3" /> Preconditions
           </button>
         )}
+        <div className="flex flex-wrap items-center gap-2">
         {options.length > 0 && (
-          <div className="flex items-center gap-2">
+          <>
             {linking ? (
               <div className="relative w-full max-w-md" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setLinking(false); }}>
                 <Input
@@ -198,9 +286,89 @@ export function CaseForm({ projectId, members, initial, caseId, suite, linkable 
                 <Link2 className="size-3" /> Link test case
               </button>
             )}
-            <span className="text-xs text-muted-foreground">Adds a “Call …” step that runs that case’s steps first (browser runs).</span>
-          </div>
+          </>
         )}
+        <button type="button" onClick={openLong} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted">
+          <AlignLeft className="size-3" /> Long text
+        </button>
+        <button type="button" onClick={openUpload} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted">
+          <ImagePlus className="size-3" /> Upload image
+        </button>
+        {options.length > 0 && !linking && (
+          <span className="text-xs text-muted-foreground">Link adds a “Call …” step that runs that case’s steps first (browser runs).</span>
+        )}
+        </div>
+        <Dialog open={upOpen} onOpenChange={setUpOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload image</DialogTitle>
+              <DialogDescription>The image is saved with the project and added as an “Upload &lt;field&gt;: file” step the browser run attaches to that file field.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {upTarget ? (
+                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">Fills step: <span className="font-medium">{upTarget.head}</span></p>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="upField">Field</Label>
+                  <Input id="upField" value={upField} onChange={(e) => setUpField(e.target.value)} placeholder="Image" />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label>Use the sample image</Label>
+                <button type="button" aria-pressed={upSample} onClick={() => { setUpSample((v) => !v); setUpFile(null); const f = document.getElementById("upFile"); if (f) f.value = ""; }}
+                  className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left text-sm hover:bg-muted ${upSample ? "border-primary ring-2 ring-primary/30" : ""}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={SAMPLE_IMAGE} alt="Sample plant" className="h-16 w-12 rounded object-cover" />
+                  <span><span className="font-medium">sample.jpg</span><span className="block text-xs text-muted-foreground">{upSample ? "Selected" : "Click to use this image"}</span></span>
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="upFile">Or choose your own image</Label>
+                <Input id="upFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(e) => { setUpFile(e.target.files?.[0] ?? null); if (e.target.files?.[0]) setUpSample(false); }} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setUpOpen(false)}>Cancel</Button>
+              <Button type="button" disabled={(!upFile && !upSample) || uploading} onClick={insertUpload}>{uploading ? "Uploading…" : "Add step"}</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={longOpen} onOpenChange={setLongOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Enter long text</DialogTitle>
+              <DialogDescription>Pick the field, write the full text, and it is added as one step.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {longTarget ? (
+                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">Fills step: <span className="font-medium">{longTarget.head}</span></p>
+              ) : (
+              <div className="space-y-1.5">
+                <Label>Field</Label>
+                <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Field">
+                  {LONG_FIELDS.map((f) => (
+                    <button key={f} type="button" role="radio" aria-checked={longField === f} onClick={() => setLongField(f)} className={`rounded-full border px-3 py-1 text-xs ${longField === f ? "border-ring bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                      {f}
+                    </button>
+                  ))}
+                  <Input aria-label="Custom field name" placeholder="Other field…" className="h-7 w-36" value={LONG_FIELDS.includes(longField) ? "" : longField} onChange={(e) => setLongField(e.target.value)} />
+                </div>
+              </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="longValue">Text</Label>
+                <Textarea id="longValue" autoFocus rows={12} placeholder={"Write or paste the full text.\nBlank lines between paragraphs are kept."} value={longValue} onChange={(e) => setLongValue(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{longValue.trim().length} characters · shown collapsed with “See more”</span>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setLongOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={insertLong} disabled={!longValue.trim() || (!longTarget && !longField.trim())}>Add as step</Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Section id="stepAction" title="Test steps" error={errors.stepAction?.message}>
           <Textarea id="stepAction" rows={10} onKeyDown={continueNumberedList} placeholder={`Test steps\n${SAMPLE_STEPS}`} className={`${quiet.replace("border-transparent ", "")} min-h-64`} {...register("stepAction", { required: "Test steps are required" })} />
         </Section>

@@ -24,3 +24,31 @@ describe("LinkedText", () => {
     expect(html("Call Nope")).not.toContain("<a");
   });
 });
+
+describe("LinkedText multi-line steps", () => {
+  it("shows extra lines under their step instead of as loose paragraphs", () => {
+    const out = html("1. Enter content: Intro\n\nSecond paragraph\n2. Click Save");
+    expect(out.match(/data-testid="step-line"/g)).toHaveLength(2);
+    expect(out).toContain('data-testid="step-more"');
+    expect(out).toContain("Second paragraph");
+  });
+
+  it("collapses a multi-line step to its first line with a See more toggle", () => {
+    const out = html("1. Enter content: Intro\n\nSecond paragraph");
+    expect(out).toContain("See more");
+    expect(out).toMatch(/data-testid="step-more"[^>]*>Second paragraph/);
+    expect(out).toMatch(/<p hidden=""[^>]*data-testid="step-more"/);
+    expect(html("1. Click Save")).not.toContain("See more");
+  });
+});
+
+describe("LinkedText fenced long values", () => {
+  it("hides the fences and collapses to the first content line", () => {
+    const out = html('1. Enter content: """\nFirst para\n\nSecond para\n"""\n2. Click Save');
+    expect(out).toContain("1. Enter content: First para");
+    expect(out).toContain("See more");
+    expect(out).toContain("Second para");
+    expect(out).not.toContain('"""');
+    expect(out).toContain("2. Click Save");
+  });
+});

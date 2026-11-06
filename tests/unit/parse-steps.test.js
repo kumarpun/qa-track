@@ -46,6 +46,23 @@ describe("parseCaseSteps", () => {
 });
 
 describe("parseLine", () => {
+  it("parses select <field>: <value> as a dropdown choice, not a click", () => {
+    expect(parseLine("8. select author: review@mailinator.com")).toMatchObject({ kind: "choose", field: "author", value: "review@mailinator.com" });
+    expect(parseLine("Select button: Save")).toMatchObject({ kind: "click", target: "Save" });
+    expect(parseLine("Select Groups from the sidenav")).toMatchObject({ kind: "click" });
+  });
+
+  it("parses upload <field>: <file> and rejects an upload with no file", () => {
+    expect(parseLine("10. Upload Image: logo.png")).toMatchObject({ kind: "upload", field: "Image", value: "logo.png" });
+    expect(parseLine("10. Upload Image:")).toBeNull();
+  });
+
+  it("parses checkbox of <row text>", () => {
+    expect(parseLine("3. Click checkbox of Article blog from TestTrack")).toMatchObject({ kind: "check", target: "Article blog from TestTrack" });
+    expect(parseLine("Tick the checkbox next to Foo")).toMatchObject({ kind: "check", target: "Foo" });
+    expect(parseLine("Click Save")).toMatchObject({ kind: "click" });
+  });
+
   it("parses type into field", () => {
     expect(parseLine('Type "bob@x.com" into Email')).toMatchObject({ kind: "type", value: "bob@x.com", field: "Email" });
     expect(parseLine("Enter hunter2 in the Password")).toMatchObject({ kind: "type", value: "hunter2", field: "Password" });
@@ -123,5 +140,78 @@ describe("call instruction", () => {
     const { instructions, unsupported } = parseCaseSteps([{ action: "Call Login\nClick Save button", expected: "Should see Done" }]);
     expect(unsupported).toEqual([]);
     expect(instructions.map((i) => i.kind)).toEqual(["call", "click", "seeText"]);
+  });
+});
+
+describe("multi-line step values", () => {
+  const long = "1. Visit site: https://a.test/admin/\n2. Enter content: First up – What’s ‘soil drainage’?\n\nIt’s a bit of a buzzword.\nSoil drainage describes how well water travels.\n3. Click Save";
+
+  it("keeps unnumbered lines and blank lines with the step above", () => {
+    const { instructions, unsupported } = parseCaseSteps([{ action: long, expected: "" }]);
+    expect(unsupported).toEqual([]);
+    expect(instructions.map((i) => i.kind)).toEqual(["goto", "type", "click"]);
+    expect(instructions[1].field).toBe("content");
+    expect(instructions[1].value).toBe("First up – What’s ‘soil drainage’?\n\nIt’s a bit of a buzzword.\nSoil drainage describes how well water travels.");
+  });
+});
+
+describe("'<label> display: <text>' assertions", () => {
+  it("accepts display/shown/appears and drops a repeated label", () => {
+    const { instructions, unsupported } = parseCaseSteps([
+      { action: "Visit https://a.test", expected: "Title display: title: Article blog from TestTrack\nSuccess message displayed: The article was added successfully\nBanner shown: Welcome" },
+    ]);
+    expect(unsupported).toEqual([]);
+    expect(instructions.slice(1).map((i) => [i.kind, i.text])).toEqual([
+      ["seeText", "Article blog from TestTrack"],
+      ["seeText", "The article was added successfully"],
+      ["seeText", "Welcome"],
+    ]);
+  });
+  it("does not swallow other instructions", () => {
+    expect(parseLine("Click Display: settings")).toMatchObject({ kind: "click" });
+  });
+});
+
+describe("click with a kind word and colon", () => {
+  it("drops 'button:' / 'link:' before the label", () => {
+    expect(parseLine("3. Click button: Add article")).toMatchObject({ kind: "click", target: "Add article" });
+    expect(parseLine("Click link: 'Sign in'")).toMatchObject({ kind: "click", target: "Sign in" });
+    expect(parseLine("Click Save button in the header")).toMatchObject({ target: "Save", scope: "header" });
+  });
+});
+
+describe("fenced long values", () => {
+  const text = '1. Visit https://x.com\n2. Enter En content: """\nPara one\nline two\n\nPara two\n"""\n3. Click Save';
+  it("keeps a fenced value with blank lines as one step", async () => {
+    const { stepBlocks } = await import("@/lib/automation/parse-steps");
+    expect(stepBlocks(text)).toHaveLength(3);
+  });
+  it("types the text between the fences", async () => {
+    const { parseCaseSteps } = await import("@/lib/automation/parse-steps");
+    const { instructions, unsupported } = parseCaseSteps([{ action: text, expected: "" }]);
+    expect(unsupported).toEqual([]);
+    expect(instructions[1]).toMatchObject({ kind: "type", field: "En content", value: "Para one\nline two\n\nPara two" });
+  });
+  it("fences work without numbering", async () => {
+    const { stepBlocks } = await import("@/lib/automation/parse-steps");
+    expect(stepBlocks('Enter body: """\na\n\nb\n"""\nClick Save')).toHaveLength(2);
+  });
+});
+
+describe("scroll", () => {
+  it("parses scroll steps", async () => {
+    const { parseLine } = await import("@/lib/automation/parse-steps");
+    expect(parseLine("6. Scroll to En summary")).toMatchObject({ kind: "scroll", target: "En summary" });
+    expect(parseLine("Scroll down to the footer")).toMatchObject({ kind: "scroll", target: "footer" });
+    expect(parseLine("Scroll to bottom")).toMatchObject({ kind: "scroll", target: "bottom" });
+  });
+});
+
+describe("text absent", () => {
+  it("parses 'should not be present' as notText", async () => {
+    const { parseLine } = await import("@/lib/automation/parse-steps");
+    expect(parseLine("Text should not be present: Select base blog to change")).toMatchObject({ kind: "notText", text: "Select base blog to change" });
+    expect(parseLine("Should not see: Foo")).toMatchObject({ kind: "notText", text: "Foo" });
+    expect(parseLine("Text should be present: Foo")).toMatchObject({ kind: "seeText", text: "Foo" });
   });
 });

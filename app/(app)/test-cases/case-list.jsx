@@ -34,27 +34,31 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [browserOpts, updateBrowserOpts] = useBrowserOptions();
-  const [active, setActive] = useState(null); // { key, done, total }
-  const [running, startRun] = useTransition();
+  const [active, setActive] = useState(null); // { key, current, done, total }
+  // Plain state, not a transition: updates made inside a transition are held back until the whole async run ends, so the spinner would never show.
+  const running = active !== null;
 
   /** Runs the given cases in the browser one after another (one run at a time). */
-  const runInBrowser = (key, ids) =>
-    startRun(async () => {
+  const runInBrowser = async (key, ids) => {
+    setActive({ key, current: ids[0], done: 0, total: ids.length });
+    try {
       let passed = 0;
       const problems = [];
       for (const [i, id] of ids.entries()) {
-        setActive({ key, done: i, total: ids.length });
+        setActive({ key, current: id, done: i, total: ids.length });
         const res = await runCaseInBrowser(projectId, id, browserOpts);
         if (!res.ok) problems.push(res.error);
         else if (res.data.status === "PASSED") passed++;
         else problems.push(res.data.failedAt ?? "failed");
       }
-      setActive(null);
       const failed = ids.length - passed;
       if (failed === 0) toast.success(ids.length === 1 ? "Case passed." : `All ${passed} cases passed.`);
       else showRunError(`${passed} of ${ids.length} passed. ${failed} not passed: ${problems.slice(0, 2).join(" | ")}`);
       router.refresh();
-    });
+    } finally {
+      setActive(null);
+    }
+  };
 
   const go = (patch) => {
     const next = new URLSearchParams(sp.toString());
@@ -170,9 +174,12 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                 )}
                 <TableCell className="max-w-md">
                   <Link href={`/test-cases/${r.id}`} className="hover:underline">{r.title}</Link>
+                  {active?.current === r.id && <Loader2 className="ml-2 inline size-3.5 animate-spin text-muted-foreground" aria-label="Running" />}
                 </TableCell>
                 <TableCell className="p-0">
-                  {canWrite
+                  {active?.current === r.id
+                    ? <div className="flex items-center gap-2 px-2.5 py-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Running…</div>
+                    : canWrite
                     ? <StatusSelect projectId={projectId} caseId={r.id} status={r.status} filled fillGroup="cases" ariaLabel={`Result for ${r.code}`} />
                     : <div className="px-2.5 py-2"><StatusBadge status={r.status} label={CASE_STATUS_LABELS[r.status]} /></div>}
                 </TableCell>
@@ -186,9 +193,9 @@ export function CaseList({ projectId, rows, page, pages, total, params, canWrite
                   <TableCell className="p-0">
                     <Button variant="ghost" size="icon-sm" disabled={running}
                       aria-label={`Run ${r.code} in browser`}
-                      title={active?.key === r.id ? "Running…" : "Run in browser"}
+                      title={active?.current === r.id ? "Running…" : "Run in browser"}
                       onClick={() => runInBrowser(r.id, [r.id])}>
-                      {active?.key === r.id ? <Loader2 className="animate-spin" /> : <Play />}
+                      {active?.current === r.id ? <Loader2 className="animate-spin" /> : <Play />}
                     </Button>
                   </TableCell>
                 )}
