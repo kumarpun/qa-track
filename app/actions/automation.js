@@ -32,14 +32,16 @@ export async function runRunCaseInBrowserAction(projectId, runCaseId, options) {
 }
 
 // What the user's local runner reports back (local mode only). Bounded so a tampered client cannot store arbitrary blobs.
+// Over-long text is truncated, not rejected: steps can legitimately be long (e.g. a rich-text article body), and rejecting would drop a finished run's result.
+const clip = (max) => z.string().transform((s) => (s.length > max ? `${s.slice(0, max - 1)}…` : s));
 const reportSchema = z.object({
   status: z.enum(["PASSED", "FAILED"]),
-  finalUrl: z.string().max(2048).nullable().optional(),
+  finalUrl: clip(2048).nullable().optional(),
   log: z.array(z.object({
     n: z.number().int().min(1).max(1000),
-    line: z.string().max(500),
+    line: clip(500),
     ok: z.boolean(),
-    detail: z.string().max(500).nullable().optional(),
+    detail: clip(500).nullable().optional(),
     ms: z.number().optional(),
   })).min(1).max(500),
 });
