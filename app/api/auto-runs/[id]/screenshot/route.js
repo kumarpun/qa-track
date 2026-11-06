@@ -4,6 +4,7 @@ import { AppError } from "@/lib/server/errors";
 import { errorResponse } from "@/lib/server/http";
 import { getAutoRunShot } from "@/lib/server/services/testcases";
 import { readShot } from "@/lib/server/automation/storage";
+import { isStepFileUrl } from "@/lib/server/services/attachments";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export async function GET(_request, { params }) {
     const row = await getAutoRunShot(id);
     if (!row?.screenshot_key) throw notFound();
     await requireProject(row.project_id, "project.read");
+    // Screenshots from Vercel / "My machine" runs are stored on freeimage.host (key is the URL); only that host is ever redirected to.
+    if (isStepFileUrl(row.screenshot_key)) return Response.redirect(row.screenshot_key, 302);
     const bytes = await readShot(row.screenshot_key).catch(() => null);
     if (!bytes) throw notFound();
     return new Response(bytes, { headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" } });

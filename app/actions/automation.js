@@ -37,6 +37,7 @@ const clip = (max) => z.string().transform((s) => (s.length > max ? `${s.slice(0
 const reportSchema = z.object({
   status: z.enum(["PASSED", "FAILED"]),
   finalUrl: clip(2048).nullable().optional(),
+  screenshotUrl: z.string().max(255).nullable().optional(), // freeimage.host URL; anything else is ignored by the service
   log: z.array(z.object({
     n: z.number().int().min(1).max(1000),
     line: clip(500),

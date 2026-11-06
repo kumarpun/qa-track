@@ -42,7 +42,7 @@ export default async function DocumentationPage() {
               <li>“Local runner not reachable” means the runner is not running (or uses another <Code>--port</Code>).</li>
               <li>Only the URL you pass to <Code>--origin</Code> can drive your browser; the runner listens on 127.0.0.1 only.</li>
               <li>Add <Code>--allow-private</Code> to let tests visit localhost and private-network URLs.</li>
-              <li>Failure screenshots are not stored for runs done on your machine; the step log is.</li>
+              <li>Failure screenshots of runs done on your machine are uploaded to the image host when the case fails (needs runner 0.1.3 or newer).</li>
             </ul>
           </CardContent>
         </Card>

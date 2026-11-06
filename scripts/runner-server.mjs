@@ -44,7 +44,7 @@ export function startRunner({ port, origins }) {
     const out = await runInBrowser(instructions, { headless: headless !== false });
     if (out.busy) return send(res, 409, { error: "Another browser run is in progress on this machine. Try again in a moment." }, cors);
     console.log(`  -> ${out.status}`);
-    send(res, 200, { status: out.status, log: out.log, finalUrl: out.finalUrl ?? null }, cors);
+    send(res, 200, { status: out.status, log: out.log, finalUrl: out.finalUrl ?? null, screenshot: out.screenshot ? Buffer.from(out.screenshot).toString("base64") : null }, cors);
   });
 
   server.listen(PORT, HOST, () => {
